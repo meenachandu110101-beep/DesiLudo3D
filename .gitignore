@@ -1,0 +1,38 @@
+# --- Python (reference engine) ---
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# --- .NET ---
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+
+# --- Unity (project root: /unity — created at M1) ---
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+MemoryCaptures/
+Recordings/
+*.csproj
+*.sln
+*.unitypackage
+crashlytics-build.properties
+/[Uu]nity/[Aa]ssets/AssetStoreTools*
+sysinfo.txt
+*.apk
+*.aab
+*.keystore
+!*.keystore.meta
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
