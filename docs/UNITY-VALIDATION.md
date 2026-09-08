@@ -70,6 +70,39 @@
   be fixed in the repo (do not hand-edit `unity/Assets/_Core/Rules/` — that
   folder is synced from `src/` via `tools/sync_rules_to_unity.py`).
 
+## M2 — Identity layer (profiles + photo medallions)
+
+**One-time dependency note:** `unity/Packages/manifest.json` now references
+`com.yasirkula.nativegallery` (MIT, free) via its GitHub git URL. The Package
+Manager resolves it automatically on first open — **internet required once**
+(it is cached afterwards). If Unity can't reach GitHub, the Gameplay assembly
+will show a missing-reference error; restore network and let it re-resolve.
+This package is what makes the **Android system Photo Picker** work
+(permissionless on Android 13+; **no camera, no storage permission** — A1).
+In the Editor the same button opens a desktop file dialog.
+
+### M2 acceptance list (after the M1 list above)
+
+| # | Test | Expected |
+|---|---|---|
+| 10 | Tap **PROFILES** (top-right) | Dark panel: one card per seat in play, seat colour + name, VOICE / STYLE / PICK PHOTO / CLEAR buttons |
+| 11 | **PICK PHOTO** (Red) → choose any jpg/png | An oval-masked photo medallion floats above every Red token, always facing the camera; button flips to REPLACE PHOTO |
+| 12 | **VOICE** button | Cycles MALE → FEMALE → CHILD (this is what will drive voice + dialogue pools in M3/M4 — never the token colour, A2) |
+| 13 | **STYLE** button | Cycles BALANCED → OVERCONFIDENT → DRAMA KING → SWEET-BUT-DEADLY → EXCITED (A3/A5 personality styles) |
+| 14 | **CLEAR** | Medallion disappears, tokens revert to plain heads, button flips back to PICK PHOTO |
+| 15 | Enter Play Mode again (photo persists) | Previously picked photos reappear on their tokens (stored under `persistentDataPath/identity`, profile JSON under `persistentDataPath/profiles`) |
+| 16 | Photo quality | Face is centre-cropped and readable at gameplay distance (~256 px medallion, soft oval edge) |
+
+### M2 known boundaries
+
+- Gray-box identity UI (legacy uGUI, in code) — the styled M3 profile editor
+  (name entry, voice profile picker once voices exist, EN/HI) replaces it
+  behind the same `ProfileService`.
+- Profile slot mapping: slots 0..3 map to the seats in play in order (fine for
+  pass-and-play; the M3/M6 flows assign profiles explicitly).
+- Bot seats can also carry photos (they become "characters"); human identity
+  rules tighten in M3.
+
 ## C# rules validation (no Unity needed, any machine with .NET SDK 8+)
 
 ```bash
@@ -83,5 +116,6 @@ python3 tools/sync_rules_to_unity.py --check        # must print IN SYNC
 unity/Assets/_Core/Rules/     canonical rules library (SYNCED COPY — do not edit)
 unity/Assets/_Core/Core/      pure C# orchestration: MatchRunner, providers, board map (no UnityEngine)
 unity/Assets/_Core/Gameplay/  Unity presentation: bootstrap, board, tokens, dice, camera, HUD, controller
+unity/Assets/_Core/Gameplay/Identity/  photo import (system picker), oval-mask processor, profiles, identity center UI
 unity/Assets/_Core/Editor/    setup wizard (menu tools)
 ```

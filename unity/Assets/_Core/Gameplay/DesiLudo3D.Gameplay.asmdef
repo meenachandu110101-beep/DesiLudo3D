@@ -5,7 +5,8 @@
         "DesiLudo3D.Rules",
         "DesiLudo3D.Core",
         "Unity.InputSystem",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "NativeGallery.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -14,6 +15,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.yasirkula.nativegallery",
+            "expression": "",
+            "define": "NATIVE_GALLERY"
+        }
+    ],
     "noEngineReferences": false
 }

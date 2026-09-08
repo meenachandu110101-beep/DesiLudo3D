@@ -12,6 +12,7 @@ namespace DesiLudo3D.Gameplay
     {
         public event Action RollPressed;
         public event Action RestartPressed;
+        public event Action ProfilesPressed;
 
         Text _turnLabel;
         Text _dieLabel;
@@ -72,6 +73,15 @@ namespace DesiLudo3D.Gameplay
             Anchor(_restartButton.GetComponent<RectTransform>(), TextAnchor.LowerCenter,
                 new Vector2(0f, 160f), new Vector2(460f, 140f));
             _restartButton.onClick.AddListener(() => RestartPressed?.Invoke());
+
+            var profilesButton = MakeButton(canvasGo.transform, "ProfilesButton", "PROFILES", font,
+                new Color(0.5f, 0.25f, 0.55f));
+            var pr = profilesButton.GetComponent<RectTransform>();
+            pr.anchorMin = new Vector2(1f, 1f);
+            pr.anchorMax = new Vector2(1f, 1f);
+            pr.anchoredPosition = new Vector2(-220f, -80f);
+            pr.sizeDelta = new Vector2(380f, 110f);
+            profilesButton.onClick.AddListener(() => ProfilesPressed?.Invoke());
 
             _resultsPanel.SetActive(false);
         }

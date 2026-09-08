@@ -57,8 +57,11 @@ namespace DesiLudo3D.Gameplay
             light.transform.rotation = Quaternion.Euler(50f, -35f, 0f);
 
             // board + dice + hud + controller
+            MatchSetup setup = BuildSetup();
+            MatchConfig config = setup.BuildConfig();
+
             _board = new GameObject("BoardBuilder").AddComponent<BoardBuilder>();
-            _board.Build(BuildSetup().BuildConfig());
+            _board.Build(config);
 
             var diceGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
             diceGo.name = "Dice";
@@ -66,13 +69,19 @@ namespace DesiLudo3D.Gameplay
             diceGo.transform.localScale = new Vector3(0.55f, 0.55f, 0.55f);
             diceGo.GetComponent<Renderer>().sharedMaterial =
                 BoardBuilder.LitMaterial(new Color(0.97f, 0.95f, 0.9f));
-            var dice = diceGo.AddComponent<DiceView>();
+            _dice = diceGo.AddComponent<DiceView>();
 
             _hud = new GameObject("Hud").AddComponent<HudView>();
             _hud.Build();
 
             _controller = new GameObject("PassAndPlay").AddComponent<PassAndPlayController>();
-            _controller.Initialize(BuildSetup(), _board, dice, _rig, _hud, seed);
+            _controller.Initialize(setup, _board, _dice, _rig, _hud, seed);
+
+            // identity layer (M2): profiles + photo medallions (system picker only — A1)
+            var profiles = new ProfileService(new FileProfileStore());
+            _identity = new GameObject("IdentityCenter").AddComponent<IdentityCenter>();
+            _identity.Initialize(profiles, PhotoImporters.Create(), _board, config, setup.Controllers);
+            _hud.ProfilesPressed += _identity.Toggle;
         }
 
         void Update()
@@ -87,7 +96,7 @@ namespace DesiLudo3D.Gameplay
         void RebuildMatch()
         {
             seed = seed * 1103515245 + 12345;    // new match, new dice
-            _controller.Initialize(BuildSetup(), _board, _rig, _hud, seed);
+            _controller.Initialize(BuildSetup(), _board, _dice, _rig, _hud, seed);
         }
 
         MatchSetup BuildSetup()

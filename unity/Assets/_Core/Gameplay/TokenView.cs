@@ -38,6 +38,81 @@ namespace DesiLudo3D.Gameplay
             SnapToBase();
         }
 
+        // ------------------------------------------------------ photo medallion (M2)
+
+        GameObject _medallion;   // world-space billboard above the token
+
+        /// <summary>Attach (or remove, with null) the player's photo
+        /// medallion — the real-face identity on the token (P3, A5). The
+        /// medallion is a camera-facing quad so the oval photo is readable
+        /// from any seat; M3 replaces it with a sculpted medallion mesh.</summary>
+        public void SetFaceTexture(Texture2D medallion)
+        {
+            if (medallion == null)
+            {
+                if (_medallion != null) _medallion.SetActive(false);
+                return;
+            }
+            if (_medallion == null)
+            {
+                _medallion = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                _medallion.name = "FaceMedallion";
+                var col = _medallion.GetComponent<Collider>();
+                if (col != null) Destroy(col);
+                _medallion.transform.localScale = new Vector3(0.62f, 0.62f, 0.62f);
+                _medallion.GetComponent<Renderer>().sharedMaterial = FaceMaterial();
+            }
+            var mat = _medallion.GetComponent<Renderer>().sharedMaterial;
+            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", medallion);
+            else mat.mainTexture = medallion;
+            _medallion.SetActive(true);
+        }
+
+        static Material _faceMatTemplate;
+
+        /// <summary>Transparent unlit material (URP Unlit transparent, with a
+        /// built-in Standard-pipeline fallback) — mirrors BoardBuilder.LitMaterial.</summary>
+        static Material FaceMaterial()
+        {
+            if (_faceMatTemplate == null)
+            {
+                bool urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null;
+                Shader shader = Shader.Find(urp ? "Universal Render Pipeline/Unlit" : "Unlit/Transparent");
+                if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null) shader = Shader.Find("Unlit/Transparent");
+                if (shader == null) shader = Shader.Find("Unlit/Texture");
+                _faceMatTemplate = new Material(shader);
+                if (_faceMatTemplate.HasProperty("_BaseMap"))   // URP: make it alpha-transparent
+                {
+                    _faceMatTemplate.SetFloat("_Surface", 1f);   // Transparent
+                    _faceMatTemplate.SetFloat("_Blend", 0f);     // Alpha
+                    _faceMatTemplate.SetOverrideTag("RenderType", "Transparent");
+                    _faceMatTemplate.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    _faceMatTemplate.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    _faceMatTemplate.DisableKeyword("_ALPHATEST_ON");
+                    _faceMatTemplate.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    _faceMatTemplate.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                }
+            }
+            return new Material(_faceMatTemplate);
+        }
+
+        void LateUpdate()
+        {
+            if (_medallion == null || !_medallion.activeSelf) return;
+            Camera cam = Camera.main;
+            if (cam == null) return;
+            // world-space (NOT parented): the token's non-uniform scale would
+            // shear a rotated child; follow position + face the camera instead
+            _medallion.transform.position = transform.position + Vector3.up * 0.58f;
+            _medallion.transform.rotation = cam.transform.rotation;
+        }
+
+        void OnDestroy()
+        {
+            if (_medallion != null) Destroy(_medallion);
+        }
+
         public Vector3 WorldOfBaseSlot =>
             GridPosToWorld(DesiLudo3D.Core.BoardGridMap.BaseSlots[(int)Seat][Index]);
 

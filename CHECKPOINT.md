@@ -5,9 +5,9 @@
 
 | Field | Value |
 |---|---|
-| **Updated (UTC)** | 2026-09-09 (M1 authoring pass complete) |
-| **Current milestone** | M1 — Unity 6 + URP foundation + gray-box gameplay (AUTHORED; editor validation pending) |
-| **Current task** | M1 code complete & statically checked. Next: M2 identity layer (photo import/picker, photo-on-token) — M1 editor validation runs in parallel on the owner's machine via `docs/UNITY-VALIDATION.md`. |
+| **Updated (UTC)** | 2026-09-09 (M2 authoring pass complete) |
+| **Current milestone** | M2 — Identity layer: photo import, medallions, profiles (AUTHORED; editor validation pending) |
+| **Current task** | M2 code complete & statically checked (61/61 Python green, sync in sync). Next: M3 comedy & game feel — ReactionDirector, R1 clips, styled UI EN+HI, save/resume wiring, premium look pass. M1/M2 editor validation runs in parallel on the owner's machine via `docs/UNITY-VALIDATION.md`. |
 | **Spec status** | 🔒 LOCKED — `docs/MASTER-SPEC.md` v1.1 (D1–D14 + amendments A1–A5) |
 
 ## Milestone status
@@ -29,10 +29,24 @@
 | Board map: Python self-check caught the classic track's 4 diagonal corner hops; table asserted & mirrored | ✅ VALIDATED (Python) / Authored (C# mirror) |
 | **Owner editor validation** | ⏳ PENDING — checklist in `docs/UNITY-VALIDATION.md` (~5 min setup + 9 acceptance tests) |
 
+
+### M2 — Identity layer: 🟡 AUTHORED (editor validation pending)
+| Component | Status |
+|---|---|
+| `Core/Identity.cs` — pure `PlayerIdentity` + `CharacterCategory` (Male/Female/Child) + `PersonalityStyle` (5 styles) | ✅ Authored |
+| `Gameplay/Identity/PhotoImporter.cs` — `IPhotoImporter` seam: NativeGallery (Android device, `NATIVE_GALLERY` define), Editor file panel, Stub | ✅ Authored |
+| `Gameplay/Identity/PhotoProcessor.cs` — centre-crop, bilinear 256px, soft-oval alpha mask, PNG persist/load | ✅ Authored |
+| `Gameplay/Identity/ProfileService.cs` — `FileProfileStore : IProfileStore` + `PlayerProfileData` JSON + `ProfileService` (load/save/set-photo/clear-photo) | ✅ Authored |
+| `Gameplay/Identity/IdentityCenter.cs` — gray-box per-seat cards (VOICE cycle, STYLE cycle, PICK/REPLACE/CLEAR photo), live medallion application, persisted-photo restore | ✅ Authored |
+| `TokenView.SetFaceTexture` — camera-facing transparent medallion quad above every token of the seat | ✅ Authored |
+| HudView PROFILES button + GameBootstrap wiring (ProfileService/PhotoImporters.Create/IdentityCenter) | ✅ Authored |
+| `manifest.json` += `com.yasirkula.nativegallery` (git URL); Gameplay asmdef += `NativeGallery.Runtime` ref + `NATIVE_GALLERY` versionDefine | ✅ Authored (JSON-validated) |
+| **Validation** | Python 61/61 ✅ · rules sync IN SYNC ✅ · 8 C# files statically balanced ✅ · owner editor checklist extended (tests 10–16) ⏳ |
+
 ## Remaining (milestone order)
 
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` (C# M0 closure) ② Unity first-open checklist (`docs/UNITY-VALIDATION.md`, M1 closure)
-- [ ] **M2** identity: Android Photo Picker import (NO camera — A1), oval crop/mask, photo-on-token medallion, profiles (character type + voice profile fields per A2/A5), replace/delete, skip path
+- [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity first-open checklist — now covers M1 tests 1–9 + M2 tests 10–16 (NativeGallery package auto-resolves on first open; internet needed once)
 - [ ] **M3** comedy & game feel: ReactionDirector (event pools × male/female/child, cooldowns, history, context), R1 clip import+playback, capture choreography polish, VFX, sound, styled UI (EN+HI), save/resume wiring, look-dev premium pass
 - [ ] **M4** bots (Easy/Medium/Hard), tutorial, dialogue expansion (150+), self-recorded VO (male/female/child profiles)
 - [ ] **M5** NetTransport + LAN play ($0) + EOS-vs-Nakama evaluation → D6 final
