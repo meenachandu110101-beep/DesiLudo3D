@@ -1,0 +1,20 @@
+{
+    "name": "DesiLudo3D.Editor",
+    "rootNamespace": "DesiLudo3D.EditorTools",
+    "references": [
+        "DesiLudo3D.Rules",
+        "DesiLudo3D.Core",
+        "DesiLudo3D.Gameplay"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

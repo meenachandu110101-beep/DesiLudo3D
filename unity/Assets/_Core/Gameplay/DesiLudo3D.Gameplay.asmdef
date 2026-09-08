@@ -1,0 +1,19 @@
+{
+    "name": "DesiLudo3D.Gameplay",
+    "rootNamespace": "DesiLudo3D.Gameplay",
+    "references": [
+        "DesiLudo3D.Rules",
+        "DesiLudo3D.Core",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
