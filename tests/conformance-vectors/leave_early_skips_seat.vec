@@ -1,0 +1,31 @@
+# DESI-LUDO-VECTOR v1
+name=leave_early_skips_seat
+players=4
+blockades=1
+threesixes=1
+capturex=1
+placings=1
+twopend=1
+cmd=leave Green
+cmd=roll Red 3
+event=left Green
+event=dice Red 3 1 0
+event=nomove Red 3
+event=turnend Yellow 1
+state=DESI-LUDO-STATE v1
+state=seats=Red,Green,Yellow,Blue
+state=blockades=1
+state=threesixes=1
+state=capturex=1
+state=placings=1
+state=twopend=1
+state=current=Yellow
+state=phase=AwaitRoll
+state=lastdie=0
+state=consec=0
+state=rolls=0
+state=turns=1
+state=finished=
+state=left=Green
+state=progress=Red:-1,-1,-1,-1;Green:-1,-1,-1,-1;Yellow:-1,-1,-1,-1;Blue:-1,-1,-1,-1
+hash=3b9a4ae4

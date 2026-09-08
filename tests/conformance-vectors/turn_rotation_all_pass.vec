@@ -1,0 +1,41 @@
+# DESI-LUDO-VECTOR v1
+name=turn_rotation_all_pass
+players=4
+blockades=1
+threesixes=1
+capturex=1
+placings=1
+twopend=1
+cmd=roll Red 3
+cmd=roll Green 3
+cmd=roll Yellow 3
+cmd=roll Blue 3
+event=dice Red 3 1 0
+event=nomove Red 3
+event=turnend Green 1
+event=dice Green 3 1 0
+event=nomove Green 3
+event=turnend Yellow 2
+event=dice Yellow 3 1 0
+event=nomove Yellow 3
+event=turnend Blue 3
+event=dice Blue 3 1 0
+event=nomove Blue 3
+event=turnend Red 4
+state=DESI-LUDO-STATE v1
+state=seats=Red,Green,Yellow,Blue
+state=blockades=1
+state=threesixes=1
+state=capturex=1
+state=placings=1
+state=twopend=1
+state=current=Red
+state=phase=AwaitRoll
+state=lastdie=0
+state=consec=0
+state=rolls=0
+state=turns=4
+state=finished=
+state=left=
+state=progress=Red:-1,-1,-1,-1;Green:-1,-1,-1,-1;Yellow:-1,-1,-1,-1;Blue:-1,-1,-1,-1
+hash=769f0d9f
