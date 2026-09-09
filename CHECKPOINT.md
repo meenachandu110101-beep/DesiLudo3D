@@ -5,9 +5,9 @@
 
 | Field | Value |
 |---|---|
-| **Updated (UTC)** | 2026-09-09 (M4 authoring pass complete) |
-| **Current milestone** | M4 — Bots, dialogue 150+, VO packs, tutorial: agents VALIDATED / Unity AUTHORED |
-| **Current task** | M4 code complete. Next: M5 — NetTransport seam + LAN play ($0) + EOS-vs-Nakama evaluation → D6 final. Owner validation of M1–M4 runs in parallel via `docs/UNITY-VALIDATION.md` (tests 1–29). |
+| **Updated (UTC)** | 2026-09-09 (M7 COMPLETE — checkpoint documentation repair pass) |
+| **Current milestone** | **M7 COMPLETE — all milestones M0–M7 code-complete.** Engine/protocol layers VALIDATED (Python suite 101/101 green); Unity layers AUTHORED, awaiting owner-side editor/device validation |
+| **Current task** | No further implementation milestones remain. All remaining work is OWNER-EXECUTED: ① Unity editor validation (tests 1–29), ② C# rules closure (`dotnet test`), ③ two-device online + reconnect/takeover validation (tests 30–42), ④ real Android device + performance-tier testing (tests 43–45), ⑤ release AAB + store preparation (tests 46–48, `docs/RELEASE-CHECKLIST.md`). Every reported failure → Arena diagnoses → fixes → re-validates. |
 | **Spec status** | 🔒 LOCKED — `docs/MASTER-SPEC.md` v1.1 (D1–D14 + amendments A1–A5) |
 
 ## Milestone status
@@ -135,40 +135,50 @@ Deep verification pass beyond the RELEASE-CHECKLIST table:
 - **Python suites**: 101/101 (61 rules + 18 comedy + 8 agents + 14 netproto,
   flake-swept 25×). ✅
 
-## Remaining (milestone order)
+## Remaining work (ALL owner-executed; Arena fixes on failure reports)
 
-- [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` (C# M0 closure) ② Unity first-open checklist (`docs/UNITY-VALIDATION.md`, M1 closure)
-- [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity first-open checklist — now covers M1 tests 1–9 + M2 tests 10–16 (NativeGallery package auto-resolves on first open; internet needed once)
-- [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity checklist tests 1–24 (M1 gray-box, M2 identity, M3 comedy/UI/save/look/clips)
-- [ ] **M7** hardening/release: device-tier quality, orientation validation, Play compliance checklist (Data Safety: P2P, no data collected), packaging, final audit
-- [ ] **M5** NetTransport + LAN play ($0) + EOS-vs-Nakama evaluation → D6 final
-- [ ] **M6** internet play: room codes, commit–reveal over the wire, reconnect, profile/clip sync
-- [ ] **M7** hardening: device lab, thermal/battery, AAB ≤80MB, Play compliance (API 36, Data Safety: no camera permission), closed testing
+Nothing implementable remains in the build environment. The genuinely
+remaining work, in order:
 
-## Files changed this stage (M1)
+- [ ] **C# rules closure (owner):** `dotnet run --project tests/DesiLudo3D.Rules.Tests` on any .NET SDK 8+ machine — M0 conformance vectors against the canonical C# port
+- [ ] **Unity editor validation — offline (owner, tests 1–29):** first-open setup, M1 gray-box match, M2 identity/photo medallions, M3 comedy/EN-HI/save-resume/look/clips, M4 bots/VO packs/tutorial (`docs/UNITY-VALIDATION.md`)
+- [ ] **Two-device online multiplayer validation (owner, tests 30–38):** room create/join (LAN beacon + manual `ip:CODE` + hotspot), full online match with animations/comedy parity, fairness console check (no `unfair-die`/`hash-mismatch`)
+- [ ] **Reconnect / rejoin / takeover validation (owner, tests 39–42):** app-restart REJOIN button, wrong-key rejection, guest-exit bot takeover, Wi-Fi-drop recovery + seat reclaim
+- [ ] **Real-device performance validation (owner, tests 43–45):** T1-class (~3 GB RAM, Android 8+) holds 30 fps, mid/high 60 fps, portrait/landscape rotation clean (D12)
+- [ ] **Release build (owner, tests 46–47):** wizard Player Settings verified (API 36 target, INTERNET-only permission), `Tools > DesiLudo3D > 5. Build Android AAB (release)`, size ≤ 80 MB, installs + launches
+- [ ] **Store preparation (owner, test 48 + `docs/RELEASE-CHECKLIST.md` §3):** upload keystore (+backup), age-rating questionnaire, Data Safety form (no data collected; P2P only), privacy-policy URL, name/trademark check (D9), closed testing track
+- [ ] **Defect loop (Arena, continuous):** every failure reported from any item above → diagnose → fix → re-run suite → record in IMPLEMENTATION-LOG → commit/push. Never mark untested features complete.
 
-- New: `unity/` — Packages/manifest.json, ProjectSettings/ProjectVersion.txt, Assets/_Core/{Rules (synced), Core, Gameplay, Editor} (18 C# files + 4 asmdefs)
-- New: `tools/sync_rules_to_unity.py`, `tools/reference-engine/ludo/boardmap.py`, `tests/test_boardmap.py`, `docs/UNITY-VALIDATION.md`
-- Updated: `docs/IMPLEMENTATION-LOG.md` (IL-016…IL-022), `CHECKPOINT.md`, `README.md`
+## Final state of the repository (M0–M7 complete)
 
-## Tests (last full sweep)
+- **Engine + protocol (VALIDATED):** `tools/reference-engine/` — `ludo/` (model, engine, dice, boardmap, netproto, comedy, agents, cli, generate_vectors) + 101 tests incl. fault injection (drop/tamper/disconnect/lies)
+- **Unity (AUTHORED — 46 C# files + 4 asmdefs):** `unity/Assets/_Core/` — Rules (synced port), Core (runner, agents, comedy, net sessions), Gameplay (board/dice/camera/HUD/identity/comedy/net/save/look/feel/perf tuner/tutorial), Editor (setup + release wizard)
+- **Docs:** MASTER-SPEC v1.1 (locked), IMPLEMENTATION-LOG IL-001…IL-041, UNITY-VALIDATION (48 owner tests), RELEASE-CHECKLIST, D6-TRANSPORT-DECISION (final: P2P), RULES-FORMAT, BUILD, README
+- **Cross-checks:** Rules↔Unity sync IN SYNC; comedy pools Python↔C# IN SYNC (test-enforced)
 
-- Python suite: **61/61 OK** (added board-map self-check + spot checks)
-- Structural checks: all 24 C# files balanced; all asmdefs + manifest JSON valid
-- Rules↔Unity sync: IN SYNC (5 files)
-- C# compile: pending owner .NET SDK machine; Unity editor validation: pending owner checklist
+## Tests (last full sweep — 2026-09-09, HEAD 525ffed)
+
+- Python suite: **101/101 green** (61 rules + 18 comedy + 8 agents + 14 netproto; netproto flake-swept 25x)
+- Structural: 46/46 C# files brace/paren balanced; asmdefs + manifest JSON valid
+- C# compile/runtime + Unity editor + real devices: **PENDING OWNER** (no toolchain in sandbox — IL-001/R12)
 
 ## Known issues / environment constraints
 
-1. No C# toolchain / Unity Editor in this sandbox (IL-001, R12) — dual-track mitigations in place; both owner validation steps are single commands/checklists.
-2. C# `MatchRunner`/Gameplay code authored against Unity 6 APIs from reference — first-open compile slip possible; `docs/UNITY-VALIDATION.md` instructs capturing any console error for a repo fix rather than hand-editing.
+1. No C# toolchain / Unity Editor in this sandbox (IL-001, R12) — dual-track: Python reference VALIDATED, C# statically mirrored; the owner checklists close the gap.
+2. C# Gameplay code authored against Unity 6 APIs from reference — first-open compile slip possible; UNITY-VALIDATION instructs capturing any console error for a repo fix rather than hand-editing.
 3. Unity 6000.0.32f1 authored; any 6000.0.x+ opens the project (upgrade prompt OK).
+4. UDP room discovery may be blocked by AP isolation on some Wi-Fi networks — manual `ip:CODE` join always works (M5 documented boundary).
 
-## Next action
+## Next action (resume point)
 
-Proceed to **M2 (identity layer)**: Android Photo Picker integration (native picker via Unity's `NativeGallery`-free approach — evaluate Unity 6's built-in `FileBrowser`/`WebGLFileBrowser` alternatives; likely a small Java plugin or Unity 6's `AndroidPhotoPicker` API if available), oval crop + masking to texture, token photo medallion, profile model with character type + voice profile (A2/A5), replace/delete controls, default-token skip path. Any native-plugin work will be authored with compile-time `#if UNITY_ANDROID` guards.
+**Owner:** run the validation gate in order — Unity first-open checklist (tests 1–29) → C# rules `dotnet test` → two-device online (tests 30–42) → device-tier performance (tests 43–45) → release build + store prep (tests 46–48). Report every failure into the repo.
+**Arena:** on any failure — diagnose → fix → re-run tests → update IL-LOG + this checkpoint → commit/push. Validation discipline: B/C/D/E below are NOT complete until the corresponding owner validation has actually passed.
+
+**Completion ladder (do not exaggerate):** A. Code-complete ✅ · B. Unity-runtime validated ❌ pending owner · C. Real Android-device validated ❌ pending owner · D. Release-ready ❌ pending owner · E. Published on Google Play ❌ pending owner.
 
 ## Commit state
 
 - Branch: `arena/01a08213-desiludo3d`
-- Last commits: `60639db` (spec lock) → `a0789dc` (M0) → M1 commit (this stage)
+- M7 code close-out: **`525ffed`** — all M0–M7 code, tests and docs (last commit touching code)
+- This checkpoint repair: documentation-only commit directly on top of `525ffed` (becomes the new HEAD)
+- Full chain: `60639db` spec lock → `a0789dc` M0 → `7c4a97a` M1 → `592e039` M2 → M3 `2b26ba8`/`de977d9`/`1a14be2`/`a42a344`/`b26bd7d` → M4 `ed706d1`/`4fc0422` → M5 `517bb40`/`6ee9236` → M6 `2fa8d01` → M7 `8eabf80`/`525ffed`
