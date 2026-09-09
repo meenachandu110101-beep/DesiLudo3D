@@ -103,6 +103,38 @@ In the Editor the same button opens a desktop file dialog.
 - Bot seats can also carry photos (they become "characters"); human identity
   rules tighten in M3.
 
+## M3 — comedy, EN/HI UI, save/resume, look pass, R1 clips
+
+### M3 acceptance list (after the M2 list above)
+
+| # | Test | Expected |
+|---|---|---|
+| 17 | Match start | Each seat greets in turn: a speech bubble appears over their most advanced token AND (Android) the line is SPOKEN; categories differ per profile (set one seat VOICE=FEMALE, one CHILD — lines must be natively different, not word swaps) |
+| 18 | Roll a 6 | "six" line + sparkle SFX; capture → attacker line (LAUGH) then victim line (ANGRY), slow-motion + camera shake + rattle/impact SFX |
+| 19 | Three sixes | VOID: red flash, "womp" SFX, dramatic line |
+| 20 | **EN/हिं toggle** (top-left) | HUD (turn label, buttons, ticker, results), profiles panel, resume panel and all bubbles switch language LIVE |
+| 21 | **Save/resume** | Play 3–4 turns, exit Play Mode, re-enter → "Resume last match?" panel → RESUME: board, tokens, turn, placings and dice history restored exactly (hash-verified replay). NEW MATCH starts fresh; finishing a match clears the save |
+| 22 | Look pass | Hand-painted cell textures, wood frame, gold stars/centre, festival gradient sky, bloom/vignette (URP); dice now has real PIP faces and lands on the rolled value every time |
+| 23 | SFX | Roll rattle, per-hop blips, release pop, capture hit, finish chime, victory fanfare — all synthesized (no audio files) |
+| 24 | **R1 clips (prerecorded — NEVER camera)** | PROFILES → CLIPS on a seat → pick a local video for an emotion (Editor: file dialog; Android: system video picker) → PREVIEW plays it in a corner card; ±0.5s trim buttons adjust in/out; REMOVE deletes the file. Assign LAUGH, then capture → your clip plays at that moment. **No camera permission, no recording, no sharing anywhere (A1)** |
+
+### M3 known boundaries
+
+- **TTS is the interim spoken-comedy carrier** (free on-device system TTS,
+  Android only; Editor shows bubbles silently). M4's prerecorded VO assets
+  replace it under the same `ISpeechSynthesis`/playback seam — A4 precedence:
+  prerecorded VO > TTS fallback > bubble-only.
+- Comedy data (94 original Hinglish lines) is generated into C# from the
+  validated Python source (`python3 tools/generate_comedy_pools.py --check`
+  in CI). M4 expands to 150+.
+- Devanagari rendering relies on Unity's dynamic-font OS fallback
+  (Android ships Noto Devanagari). Check shaping quality on a device; if
+  uGUI Text shapes Indic conjuncts poorly, M4 swaps the text layer to
+  Unity 6 Text Core behind the same `UiStrings` table.
+- Clip trim = playback start/end offsets (no re-encode, no ffmpeg).
+- Slow-mo capture moment and flashes are gray-box choreography; the M4
+  polish pass tunes timings.
+
 ## C# rules validation (no Unity needed, any machine with .NET SDK 8+)
 
 ```bash

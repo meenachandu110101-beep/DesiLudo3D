@@ -5,9 +5,9 @@
 
 | Field | Value |
 |---|---|
-| **Updated (UTC)** | 2026-09-09 (M2 authoring pass complete) |
-| **Current milestone** | M2 — Identity layer: photo import, medallions, profiles (AUTHORED; editor validation pending) |
-| **Current task** | M2 code complete & statically checked (61/61 Python green, sync in sync). Next: M3 comedy & game feel — ReactionDirector, R1 clips, styled UI EN+HI, save/resume wiring, premium look pass. M1/M2 editor validation runs in parallel on the owner's machine via `docs/UNITY-VALIDATION.md`. |
+| **Updated (UTC)** | 2026-09-09 (M3 authoring pass complete) |
+| **Current milestone** | M3 — Comedy & game feel: VALIDATED engine + AUTHORED Unity layer |
+| **Current task** | M3 code complete. Next: M4 — bot tiers (Easy/Medium/Hard), tutorial, dialogue expansion to 150+, self-recorded VO profiles (male/female/child). Owner validation of M1+M2+M3 runs in parallel via `docs/UNITY-VALIDATION.md` (tests 1–24). |
 | **Spec status** | 🔒 LOCKED — `docs/MASTER-SPEC.md` v1.1 (D1–D14 + amendments A1–A5) |
 
 ## Milestone status
@@ -43,11 +43,26 @@
 | `manifest.json` += `com.yasirkula.nativegallery` (git URL); Gameplay asmdef += `NativeGallery.Runtime` ref + `NATIVE_GALLERY` versionDefine | ✅ Authored (JSON-validated) |
 | **Validation** | Python 61/61 ✅ · rules sync IN SYNC ✅ · 8 C# files statically balanced ✅ · owner editor checklist extended (tests 10–16) ⏳ |
 
+
+### M3 — Comedy & game feel: 🟡 engine VALIDATED / Unity AUTHORED
+| Component | Status |
+|---|---|
+| `ludo/comedy.py` — 94 original Hinglish lines (13 contexts × 3 categories × personality variants, A3 native female/child pools), splitmix64 selector, event mapping | ✅ **VALIDATED** (18 tests; 79/79 total) |
+| Personality-bias fix (repeat window inverted bias 25%→correct 46%/16% enrichment) | ✅ **VALIDATED** (found by tests, fixed, re-tested) |
+| `tools/generate_comedy_pools.py` → `Core/Comedy/ComedyPools.cs` | ✅ VALIDATED (IN SYNC) |
+| `Core/Comedy/` ComedyDirector + ComedyEvents (C# mirrors) | ✅ Authored |
+| `Gameplay/Comedy/` UiStrings (EN/HI live toggle), SpeechBubbleView, ComedyPlayback, ISpeechSynthesis + AndroidTtsSpeaker (free system TTS, A4 fallback precedence) | ✅ Authored |
+| Save/resume: SaveService (atomic batch autosave) + resume panel + `InitializeWithRunner` | ✅ Authored (round-trip logic VALIDATED at rules level in M0/M1) |
+| LookDev (procedural painted cells/wood/gold, gradient sky, URP volume), DiceView pip die (lands on predetermined face), SfxSynth (all SFX synthesized), GameFeel (slow-mo/shake/flash) | ✅ Authored |
+| R1 clips: IVideoImporter (system picker, camera-free A1), ReactionClipLibrary (local copies + trim offsets), ClipReactionOverlay + ClipLibraryPanel, ComedyPlayback→overlay hook | ✅ Authored |
+| Event streams: EventStarted / EventAnimated / BatchCompleted on PassAndPlayController | ✅ Authored |
+| **Validation** | Python 79/79 ✅ · pools IN SYNC ✅ · rules sync IN SYNC ✅ · all new/edited C# brace/paren-balanced ✅ · owner checklist tests 17–24 ⏳ |
+
 ## Remaining (milestone order)
 
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` (C# M0 closure) ② Unity first-open checklist (`docs/UNITY-VALIDATION.md`, M1 closure)
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity first-open checklist — now covers M1 tests 1–9 + M2 tests 10–16 (NativeGallery package auto-resolves on first open; internet needed once)
-- [ ] **M3** comedy & game feel: ReactionDirector (event pools × male/female/child, cooldowns, history, context), R1 clip import+playback, capture choreography polish, VFX, sound, styled UI (EN+HI), save/resume wiring, look-dev premium pass
+- [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity checklist tests 1–24 (M1 gray-box, M2 identity, M3 comedy/UI/save/look/clips)
 - [ ] **M4** bots (Easy/Medium/Hard), tutorial, dialogue expansion (150+), self-recorded VO (male/female/child profiles)
 - [ ] **M5** NetTransport + LAN play ($0) + EOS-vs-Nakama evaluation → D6 final
 - [ ] **M6** internet play: room codes, commit–reveal over the wire, reconnect, profile/clip sync

@@ -6,6 +6,17 @@ using UnityEngine.UI;
 
 namespace DesiLudo3D.Gameplay
 {
+    /// <summary>Services the identity UI needs (avoids an 8-arg Initialize).</summary>
+    public class IdentityDeps
+    {
+        public ProfileService Profiles;
+        public IPhotoImporter PhotoImporter;
+        public IVideoImporter VideoImporter;
+        public ReactionClipLibrary Clips;
+        public ClipReactionOverlay ClipOverlay;
+        public ClipLibraryPanel ClipsPanel;
+    }
+
     /// <summary>Gray-box identity center (M2): per-seat cards — pick photo
     /// (system picker, never camera — A1), cycle character category
     /// (Male/Female/Child — A2/A5), clear photo. Photos apply live to token
@@ -18,17 +29,19 @@ namespace DesiLudo3D.Gameplay
         BoardBuilder _board;
         MatchConfig _config;
         ControllerKind[] _kinds;
+        IdentityDeps _deps;
 
         readonly Dictionary<int, Texture2D> _medallions = new Dictionary<int, Texture2D>();
         GameObject _panel;
         GameObject _cardsRoot;
         bool _busy;
 
-        public void Initialize(ProfileService profiles, IPhotoImporter importer,
-                               BoardBuilder board, MatchConfig config, ControllerKind[] kinds)
+        public void Initialize(IdentityDeps deps, BoardBuilder board,
+                               MatchConfig config, ControllerKind[] kinds)
         {
-            _profiles = profiles;
-            _importer = importer;
+            _deps = deps ?? throw new ArgumentNullException(nameof(deps));
+            _profiles = deps.Profiles;
+            _importer = deps.PhotoImporter;
             _board = board;
             _config = config;
             _kinds = kinds ?? new ControllerKind[4];
@@ -114,13 +127,18 @@ namespace DesiLudo3D.Gameplay
             var photo = MakeButton(card.transform, "PhotoButton",
                 UiStrings.Get(string.IsNullOrEmpty(data.photoPath) ? "pickPhoto" : "replacePhoto"),
                 new Color(0.2f, 0.5f, 0.3f), 34);
-            CenterAt(photo.GetComponent<RectTransform>(), new Vector2(-130f, -100f), new Vector2(580f, 110f));
+            CenterAt(photo.GetComponent<RectTransform>(), new Vector2(-230f, -100f), new Vector2(400f, 110f));
             photo.onClick.AddListener(() => PickPhoto(slot, seat));
 
             var clear = MakeButton(card.transform, "ClearButton",
                 UiStrings.Get("clear"), new Color(0.6f, 0.25f, 0.25f), 30);
-            CenterAt(clear.GetComponent<RectTransform>(), new Vector2(330f, -100f), new Vector2(200f, 110f));
+            CenterAt(clear.GetComponent<RectTransform>(), new Vector2(50f, -100f), new Vector2(130f, 110f));
             clear.onClick.AddListener(() => ClearPhoto(slot, seat));
+
+            var clips = MakeButton(card.transform, "ClipsButton",
+                UiStrings.Get("clips"), new Color(0.15f, 0.4f, 0.55f), 30);
+            CenterAt(clips.GetComponent<RectTransform>(), new Vector2(225f, -100f), new Vector2(190f, 110f));
+            clips.onClick.AddListener(() => _deps?.ClipsPanel?.Open(slot, Seats.Name(seat)));
         }
 
         // ------------------------------------------------------------- actions

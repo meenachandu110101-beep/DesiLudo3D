@@ -106,6 +106,15 @@ namespace DesiLudo3D.Gameplay
 
             // clips (R1 — prerecorded, picker-imported; never camera — A1)
             { "clips",        new[] { "CLIPS", "क्लिप्स" } },
+            { "pick",         new[] { "PICK", "चुनें" } },
+            { "replace",      new[] { "REPLACE", "बदलें" } },
+            { "emoHappy",     new[] { "HAPPY", "खुश" } },
+            { "emoExcited",   new[] { "EXCITED", "उत्साहित" } },
+            { "emoLaugh",     new[] { "LAUGH", "हँसी" } },
+            { "emoAngry",     new[] { "ANGRY", "गुस्सा" } },
+            { "emoSad",       new[] { "SAD", "दुखी" } },
+            { "emoVictory",   new[] { "VICTORY", "जीत" } },
+            { "emoTired",     new[] { "TIRED", "थका" } },
             { "clipsTitle",   new[] { "REACTION CLIPS — prerecorded only", "रिएक्शन क्लिप्स — सिर्फ़ पहले से रिकॉर्ड की हुई" } },
             { "pickClip",     new[] { "PICK CLIP", "क्लिप चुनें" } },
             { "clipFor",      new[] { "{0}: {1}", "{0}: {1}" } },

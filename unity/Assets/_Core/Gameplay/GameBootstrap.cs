@@ -22,6 +22,10 @@ namespace DesiLudo3D.Gameplay
 
         ProfileService _profiles;
         ISpeechSynthesis _speech;
+        ReactionClipLibrary _clipLib;
+        ClipReactionOverlay _clipOverlay;
+        ClipLibraryPanel _clipPanel;
+        System.Action<DesiLudo3D.Core.ComedyLine, string, int> _comedyLineHook;
         SaveService _saves;
         CameraRig _rig;
         BoardBuilder _board;
@@ -164,14 +168,39 @@ namespace DesiLudo3D.Gameplay
 
             MatchConfig config = resumed != null ? resumed.Config : setup.BuildConfig();
 
-            // identity layer (M2): profiles + photo medallions (system picker only — A1)
+            // identity layer (M2) + R1 prerecorded clips (M3 — picker only, A1)
             if (_profiles == null) _profiles = new ProfileService(new FileProfileStore());
+            if (_clipLib == null)
+            {
+                _clipLib = new ReactionClipLibrary();
+                var overlayGo = new GameObject("ClipOverlay");
+                _clipOverlay = overlayGo.AddComponent<ClipReactionOverlay>();
+                _clipOverlay.Initialize();
+                var panelGo = new GameObject("ClipPanel");
+                _clipPanel = panelGo.AddComponent<ClipLibraryPanel>();
+                _clipPanel.Initialize(_clipLib, VideoImporters.Create(), _clipOverlay);
+            }
             if (_identity == null)
             {
                 _identity = new GameObject("IdentityCenter").AddComponent<IdentityCenter>();
-                _identity.Initialize(_profiles, PhotoImporters.Create(), _board,
-                                     config, setup.Controllers);
+                _identity.Initialize(new IdentityDeps
+                {
+                    Profiles = _profiles,
+                    PhotoImporter = PhotoImporters.Create(),
+                    VideoImporter = VideoImporters.Create(),
+                    Clips = _clipLib,
+                    ClipOverlay = _clipOverlay,
+                    ClipsPanel = _clipPanel,
+                }, _board, config, setup.Controllers);
                 _hud.ProfilesPressed += _identity.Toggle;
+            }
+
+            // R1: when the comedy layer presents a line, play that profile's
+            // prerecorded clip for the emotion if one is assigned (local only)
+            if (_comedyLineHook == null)
+            {
+                _comedyLineHook = (line, emotion, slot) =>
+                    _clipOverlay.PlayForSlot(_clipLib, slot, emotion);
             }
 
             // comedy layer (M3): validated Core engine -> spoken lines + bubbles
@@ -188,6 +217,8 @@ namespace DesiLudo3D.Gameplay
             _comedy.Initialize(_controller, _board, _profiles,
                                _speech ?? (_speech = SpeechSynthesis.Create()),
                                (ulong)seed, greet: resumed == null);
+            _comedy.LinePresented -= _comedyLineHook;
+            _comedy.LinePresented += _comedyLineHook;
         }
 
         void Update()
