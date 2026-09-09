@@ -66,10 +66,11 @@ namespace DesiLudo3D.Gameplay
             _runner.CommandApplied += OnCommandApplied;
 
             _bots.Clear();
+            var tier = (BotTier)Math.Max(0, Math.Min(2, setup.BotTier));
             foreach (Seat seat in _runner.Config.SeatsInPlay)
             {
                 if (setup.KindFor(seat) == ControllerKind.Bot)
-                    _bots[seat] = new RandomAgent(seed * 31 + (int)seat);
+                    _bots[seat] = new HeuristicAgent(tier, seed * 31 + (int)seat);
             }
 
             _hud.RollPressed -= OnRollPressed;

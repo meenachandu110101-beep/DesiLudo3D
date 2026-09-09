@@ -18,6 +18,7 @@ namespace DesiLudo3D.Gameplay
         public bool yellowIsBot;
         public bool blueIsBot;
         public bool blockades = true;     // D4 toggle (default ON)
+        [Range(0, 2)] public int botTier = 2;   // 0=Easy 1=Medium 2=Hard
         public int seed = 12345;
 
         ProfileService _profiles;
@@ -250,6 +251,7 @@ namespace DesiLudo3D.Gameplay
                 ThreeSixes = true,
                 CaptureExtra = true,
                 Placings = true,
+                BotTier = botTier,
             };
             var kinds = new[]
             {

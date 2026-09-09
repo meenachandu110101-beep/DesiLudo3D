@@ -151,6 +151,7 @@ namespace DesiLudo3D.Core
         public bool ThreeSixes = true;
         public bool CaptureExtra = true;
         public bool Placings = true;
+        public BotTier BotTier = BotTier.Hard;   // difficulty for all bot seats
 
         /// <summary>One entry per seat in play (seat order per Rules.Seats).</summary>
         public ControllerKind[] Controllers = { ControllerKind.Human, ControllerKind.Human, ControllerKind.Human, ControllerKind.Human };
