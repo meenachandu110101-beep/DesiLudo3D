@@ -202,6 +202,17 @@ Machine-VALIDATED underpinning: `test_app_restart_reconnect_with_proof`,
 `test_rejoin_with_wrong_key_rejected`, `test_takeover_seat_as_bot_then_rejoin_reclaims`
 (Python protocol suite, 101/101 green).
 
+### M7 additions — hardening & release readiness
+
+| # | Test | Expected |
+|---|---|---|
+| 43 | Run on the slowest available device (T1: ~3 GB RAM, Android 8+) | Console log shows `PerformanceTuner: tier Low`; steady ~30 fps during play; board still reads clearly (½-res textures, hard shadows only) |
+| 44 | Run on a mid/flagship device | Log shows `tier Mid/High`; 60 fps; soft shadows, AA on |
+| 45 | Rotate portrait ↔ landscape mid-match | All HUD controls reachable in both; board centered; no off-screen buttons (D12) |
+| 46 | `Tools/DesiLudo3D/1. Configure Player Settings` → inspect Player settings | Target API 36 (or Automatic with the console warning), min API 26, INTERNET only — no camera/mic/storage permission |
+| 47 | `Tools/DesiLudo3D/5. Build Android AAB (release)` | `Builds/DesiLudo3D-1.0.0.aab` builds; size well under 80 MB; installs and launches on device |
+| 48 | Full owner pass of `docs/RELEASE-CHECKLIST.md` | Every ✅/📝 item closed before store submission |
+
 ## C# rules validation (no Unity needed, any machine with .NET SDK 8+)
 
 ```bash

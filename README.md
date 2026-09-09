@@ -19,7 +19,7 @@ tests/                   C# test suites (consume the shared vectors)
 unity/                   Unity 6 + URP project (M1: gray-box pass-and-play; see docs/UNITY-VALIDATION.md)
   Assets/_Core/Rules/    canonical rules (SYNCED COPY — edit src/ only)
   Assets/_Core/Core/     pure orchestration: MatchRunner, provider seams, board map
-  Assets/_Core/Gameplay/ Unity presentation (bootstrap, board, tokens, dice, camera, HUD, identity, comedy, save/resume, look pass, online LAN)
+  Assets/_Core/Gameplay/ Unity presentation (bootstrap, board, tokens, dice, camera, HUD, identity, comedy, save/resume, look pass, online LAN, perf tuner)
   Assets/_Core/Editor/   one-click project setup wizard
 ```
 

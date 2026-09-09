@@ -94,6 +94,17 @@
 | Flaky unfair-die test fixed (deterministic injection point) | ✅ 25× re-run clean |
 | **Validation** | Python suite **101/101** ✅ · touched C# structurally balanced ✅ · owner checklist tests 39–42 ⏳ |
 
+
+### M7 — hardening & release readiness: 🟡 AUTHORED (owner validation gate)
+| Component | Status |
+|---|---|
+| PerformanceTuner — §8.2 quality matrix auto-probe (mips/shadows/AA/fps; PlayerPrefs override) | ✅ Authored (boot-time, one path) |
+| Wizard — target API 36 (reflection, Auto fallback), version stamp 1.0.0/1 | ✅ Authored |
+| Wizard — one-click release AAB + §10 size-budget warning | ✅ Authored |
+| docs/RELEASE-CHECKLIST.md — full spec-to-repo audit + store steps + $0 cost audit | ✅ Written |
+| Orientation (D12) both allowed, portrait preferred | ✅ Set in M0; device test 45 ⏳ |
+| **Validation** | Python 101/101 ✅ · all touched C# balanced ✅ · owner checklist tests 43–48 ⏳ |
+
 ## Remaining (milestone order)
 
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` (C# M0 closure) ② Unity first-open checklist (`docs/UNITY-VALIDATION.md`, M1 closure)

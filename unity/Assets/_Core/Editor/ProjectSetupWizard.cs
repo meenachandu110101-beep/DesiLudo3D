@@ -31,10 +31,33 @@ namespace DesiLudo3D.EditorTools
             PlayerSettings.allowedAutorotateToLandscapeLeft = true;
             PlayerSettings.allowedAutorotateToLandscapeRight = true;
 
-            // Android (spec §10): min Android 8 / API 26; target auto (raise
-            // to 36 at M7 submission per Play policy); IL2CPP + ARM64; GLES3.
+            // Android (spec §10): min Android 8 / API 26; target API 36
+            // (Play requirement for new apps post-Aug-2026); IL2CPP+ARM64;
+            // GLES3. API 36 is set via reflection because older Unity 6
+            // builds lack the AndroidApiLevel36 enum member — Auto is the
+            // documented fallback (picks the highest installed SDK).
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
+            try
+            {
+                var field = typeof(AndroidSdkVersions).GetField("AndroidApiLevel36");
+                if (field != null)
+                    PlayerSettings.Android.targetSdkVersion =
+                        (AndroidSdkVersions)field.GetValue(null);
+                else
+                    Debug.LogWarning("[DesiLudo3D] AndroidApiLevel36 not in this "
+                        + "Unity build — keep Target = Automatic Installed, and "
+                        + "verify API 36 in the Play upload pre-launch report.");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[DesiLudo3D] targetSdkVersion=36 not set: "
+                    + e.Message);
+            }
+
+            // M7: version stamping (bump per release; code +1 every upload)
+            PlayerSettings.bundleVersion = "1.0.0";
+            PlayerSettings.Android.bundleVersionCode = 1;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.SetArchitecture(NamedBuildTarget.Android, 2); // 2 = ARM64
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
@@ -124,6 +147,39 @@ namespace DesiLudo3D.EditorTools
 
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             Debug.Log("[DesiLudo3D] Main scene created at " + ScenePath + " and added to Build Settings. Press Play!");
+        }
+
+        // --------------------------------------------------------------- 5
+
+        [MenuItem("Tools/DesiLudo3D/5. Build Android AAB (release)")]
+        public static void BuildAab()
+        {
+            if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
+            {
+                Debug.LogWarning("[DesiLudo3D] Switch to Android first (menu 2).");
+                return;
+            }
+            // AAB with LZ4 compression (Play upload format; size budget §10:
+            // target <= 80 MB). Debug symbols embedded is fine for V1.
+            EditorUserBuildSettings.buildAppBundle = true;
+            var options = new BuildPlayerOptions
+            {
+                scenes = new[] { ScenePath },
+                locationPathName = "Builds/DesiLudo3D-" + PlayerSettings.bundleVersion
+                                   + ".aab",
+                target = BuildTarget.Android,
+                options = BuildOptions.None
+            };
+            var report = BuildPipeline.BuildPlayer(options);
+            bool ok = report.summary.result == BuildResult.Succeeded;
+            Debug.Log(ok
+                ? "[DesiLudo3D] AAB built: " + options.locationPathName + " ("
+                  + (report.summary.totalSize / (1024 * 1024)) + " MB)"
+                : "[DesiLudo3D] Build FAILED: " + report.summary.result
+                  + " — see Console for errors.");
+            if (ok && report.summary.totalSize > 120 * 1024 * 1024)
+                Debug.LogWarning("[DesiLudo3D] AAB > 120 MB — spec §10 alert "
+                                 + "threshold. Audit asset sizes before upload.");
         }
 
         // --------------------------------------------------------------- 4

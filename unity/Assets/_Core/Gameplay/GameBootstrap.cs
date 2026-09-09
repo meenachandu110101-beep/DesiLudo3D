@@ -52,6 +52,10 @@ namespace DesiLudo3D.Gameplay
 
         void BuildAll()
         {
+            // M7: device-tier quality matrix (spec §10/§8.2) — one probe at
+            // boot, no per-frame cost
+            PerformanceTuner.Apply();
+
             // camera
             Camera cam = Camera.main;
             if (cam == null)
