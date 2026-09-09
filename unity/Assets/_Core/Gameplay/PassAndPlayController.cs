@@ -32,8 +32,24 @@ namespace DesiLudo3D.Gameplay
         /// comedy layer, R1 clip overlay and auto-save subscribe here.</summary>
         public event Action<GameEvent> EventAnimated;
 
+        /// <summary>Raised once per applied command, after its whole event
+        /// batch has animated — the auto-save point.</summary>
+        public event Action BatchCompleted;
+
         public void Initialize(MatchSetup setup, BoardBuilder board, DiceView dice,
                                CameraRig rig, HudView hud, int seed)
+        {
+            InitializeWithRunner(
+                new MatchRunner(setup.BuildConfig(), new SeededRandomDiceProvider(seed)),
+                setup, board, dice, rig, hud, seed);
+        }
+
+        /// <summary>Resume path (M3): adopt a restored MatchRunner (from
+        /// MatchRunner.Load — hash-verified replay) with the CURRENT setup's
+        /// controller kinds; the saved rules state is authoritative.</summary>
+        public void InitializeWithRunner(MatchRunner runner, MatchSetup setup,
+                                         BoardBuilder board, DiceView dice,
+                                         CameraRig rig, HudView hud, int seed)
         {
             _setup = setup;
             _board = board;
@@ -41,7 +57,8 @@ namespace DesiLudo3D.Gameplay
             _cameraRig = rig;
             _hud = hud;
 
-            _runner = new MatchRunner(setup.BuildConfig(), new SeededRandomDiceProvider(seed));
+            if (_runner != null) _runner.CommandApplied -= OnCommandApplied;
+            _runner = runner ?? throw new ArgumentNullException(nameof(runner));
             _runner.CommandApplied += OnCommandApplied;
 
             _bots.Clear();
@@ -153,6 +170,7 @@ namespace DesiLudo3D.Gameplay
             }
             _processing = false;
             RefreshHud();
+            BatchCompleted?.Invoke();
             MaybeStartBotTurn();
         }
 

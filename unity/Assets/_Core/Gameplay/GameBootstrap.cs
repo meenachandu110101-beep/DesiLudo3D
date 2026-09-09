@@ -1,14 +1,14 @@
 using DesiLudo3D.Core;
 using DesiLudo3D.Rules;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace DesiLudo3D.Gameplay
 {
-    /// <summary>Single boot object for the M1 gray-box scene: builds camera,
-    /// light, board, dice, HUD and the pass-and-play controller procedurally.
-    /// No prefabs or scene assets required — the whole game assembles from
-    /// code, which keeps the authored repo buildable without binary assets.
-    /// (M3 introduces authored scene content on top of this.)</summary>
+    /// <summary>Single boot object for the gray-box scene: builds camera,
+    /// light, board, dice, HUD, the pass-and-play controller, the identity
+    /// layer, comedy playback and save/resume — all procedurally, no scene
+    /// assets (IL-021). On boot, a detected auto-save offers RESUME.</summary>
     public class GameBootstrap : MonoBehaviour
     {
         [Header("Match setup")]
@@ -22,10 +22,14 @@ namespace DesiLudo3D.Gameplay
 
         ProfileService _profiles;
         ISpeechSynthesis _speech;
+        SaveService _saves;
         CameraRig _rig;
         BoardBuilder _board;
         PassAndPlayController _controller;
         HudView _hud;
+        DiceView _dice;
+        IdentityCenter _identity;
+        ComedyPlayback _comedy;
         bool _started;
 
         void Start()
@@ -58,10 +62,14 @@ namespace DesiLudo3D.Gameplay
             light.shadows = LightShadows.Soft;
             light.transform.rotation = Quaternion.Euler(50f, -35f, 0f);
 
-            // board + dice + hud + controller
-            MatchSetup setup = BuildSetup();
-            MatchConfig config = setup.BuildConfig();
+            // save/resume (M3): peek BEFORE building the board — the board
+            // layout must match the SAVED seat set, not the inspector's
+            _saves = new SaveService();
+            MatchRunner resumed = _saves.HasSave ? _saves.LoadRunner(seed) : null;
+            if (_saves.HasSave && resumed == null) _saves.Delete();   // corrupt: discard
+            MatchConfig config = resumed != null ? resumed.Config : BuildSetup().BuildConfig();
 
+            // board + dice + hud + controller
             _board = new GameObject("BoardBuilder").AddComponent<BoardBuilder>();
             _board.Build(config);
 
@@ -77,26 +85,107 @@ namespace DesiLudo3D.Gameplay
             _hud.Build();
 
             _controller = new GameObject("PassAndPlay").AddComponent<PassAndPlayController>();
-            _controller.Initialize(setup, _board, _dice, _rig, _hud, seed);
+            _saves.Attach(_controller);
+
+            if (resumed != null)
+            {
+                StartMatch(resumed);
+            }
+            else if (_saves.HasSave)
+            {
+                // saved match exists but not yet loaded (panel choice)
+                ShowResumePanel(resume => StartMatch(resume ? LoadResumed() : null));
+            }
+            else
+            {
+                StartMatch(null);
+            }
+        }
+
+        MatchRunner LoadResumed()
+        {
+            MatchRunner runner = _saves.LoadRunner(seed);
+            if (runner == null) _saves.Delete();
+            return runner;
+        }
+
+        void ShowResumePanel(System.Action<bool> onChoice)
+        {
+            var canvas = FindObjectOfType<Canvas>();
+            if (canvas == null) { onChoice(false); return; }
+
+            var panel = new GameObject("ResumePanel", typeof(Image));
+            panel.transform.SetParent(canvas.transform, false);
+            var rect = panel.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            panel.GetComponent<Image>().color = new Color(0.08f, 0.05f, 0.02f, 0.94f);
+            panel.AddComponent<CanvasGroup>().blocksRaycasts = true;
+
+            var title = MakePanelText(panel.transform, "Title",
+                UiStrings.Get("resumeTitle"), 58, FontStyle.Bold, new Color(1f, 0.85f, 0.6f));
+            title.rectTransform.anchoredPosition = new Vector2(0f, 120f);
+            title.rectTransform.sizeDelta = new Vector2(1000f, 120f);
+
+            var resume = MakePanelButton(panel.transform, "ResumeButton",
+                UiStrings.Get("resume"), new Color(0.2f, 0.6f, 0.3f));
+            resume.GetComponent<RectTransform>().anchoredPosition = new Vector2(-220f, -80f);
+            resume.GetComponent<RectTransform>().sizeDelta = new Vector2(400f, 140f);
+            resume.onClick.AddListener(() => { Destroy(panel); onChoice(true); });
+
+            var fresh = MakePanelButton(panel.transform, "NewMatchButton",
+                UiStrings.Get("newMatch"), new Color(0.6f, 0.3f, 0.1f));
+            fresh.GetComponent<RectTransform>().anchoredPosition = new Vector2(220f, -80f);
+            fresh.GetComponent<RectTransform>().sizeDelta = new Vector2(400f, 140f);
+            fresh.onClick.AddListener(() => { Destroy(panel); _saves.Delete(); onChoice(false); });
+        }
+
+        /// <summary>Start (or resume) a match: controller, identity layer,
+        /// comedy layer, language wiring.</summary>
+        void StartMatch(MatchRunner resumed)
+        {
+            // setup must mirror the actual seat set (bot kinds per seat)
+            if (resumed != null) players = resumed.Config.SeatsInPlay.Length;
+            MatchSetup setup = BuildSetup();
+
+            if (resumed != null)
+            {
+                _controller.InitializeWithRunner(resumed, setup, _board, _dice,
+                                                 _rig, _hud, seed);
+            }
+            else
+            {
+                _controller.Initialize(setup, _board, _dice, _rig, _hud, seed);
+            }
+
+            MatchConfig config = resumed != null ? resumed.Config : setup.BuildConfig();
 
             // identity layer (M2): profiles + photo medallions (system picker only — A1)
-            var profiles = _profiles = new ProfileService(new FileProfileStore());
-            _identity = new GameObject("IdentityCenter").AddComponent<IdentityCenter>();
-            _identity.Initialize(profiles, PhotoImporters.Create(), _board, config, setup.Controllers);
-            _hud.ProfilesPressed += _identity.Toggle;
+            if (_profiles == null) _profiles = new ProfileService(new FileProfileStore());
+            if (_identity == null)
+            {
+                _identity = new GameObject("IdentityCenter").AddComponent<IdentityCenter>();
+                _identity.Initialize(_profiles, PhotoImporters.Create(), _board,
+                                     config, setup.Controllers);
+                _hud.ProfilesPressed += _identity.Toggle;
+            }
 
             // comedy layer (M3): validated Core engine -> spoken lines + bubbles
-            _comedy = new GameObject("ComedyPlayback").AddComponent<ComedyPlayback>();
-            _comedy.Initialize(_controller, _board, profiles,
-                               SpeechSynthesis.Create(), (ulong)seed);
-
-            // live EN/HI language toggle (D8)
-            _hud.LanguageChanged += () =>
+            if (_comedy == null)
             {
-                _controller.RefreshHud();
-                _hud.RefreshStrings();
-                _identity.RefreshLanguage();
-            };
+                _comedy = new GameObject("ComedyPlayback").AddComponent<ComedyPlayback>();
+                _hud.LanguageChanged += () =>
+                {
+                    _controller.RefreshHud();
+                    _hud.RefreshStrings();
+                    _identity.RefreshLanguage();
+                };
+            }
+            _comedy.Initialize(_controller, _board, _profiles,
+                               _speech ?? (_speech = SpeechSynthesis.Create()),
+                               (ulong)seed, greet: resumed == null);
         }
 
         void Update()
@@ -111,6 +200,7 @@ namespace DesiLudo3D.Gameplay
         void RebuildMatch()
         {
             seed = seed * 1103515245 + 12345;    // new match, new dice
+            _saves.Delete();
             var setup = BuildSetup();
             _controller.Initialize(setup, _board, _dice, _rig, _hud, seed);
             _comedy.Initialize(_controller, _board, _profiles,
@@ -137,6 +227,36 @@ namespace DesiLudo3D.Gameplay
             };
             setup.Controllers = kinds;
             return setup;
+        }
+
+        // -------------------------------------------------------- panel helpers
+
+        static Text MakePanelText(Transform parent, string name, string text, int size,
+                                  FontStyle style, Color color)
+        {
+            var go = new GameObject(name, typeof(Text));
+            go.transform.SetParent(parent, false);
+            var t = go.GetComponent<Text>();
+            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            t.text = text;
+            t.fontSize = size;
+            t.fontStyle = style;
+            t.color = color;
+            t.alignment = TextAnchor.MiddleCenter;
+            t.raycastTarget = false;
+            return t;
+        }
+
+        static Button MakePanelButton(Transform parent, string name, string label, Color color)
+        {
+            var go = new GameObject(name, typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            go.GetComponent<Image>().color = color;
+            var button = go.GetComponent<Button>();
+            var text = MakePanelText(go.transform, "Label", label, 48, FontStyle.Bold, Color.white);
+            text.rectTransform.Stretch();
+            text.raycastTarget = false;
+            return button;
         }
     }
 }

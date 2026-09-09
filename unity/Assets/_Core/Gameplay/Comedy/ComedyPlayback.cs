@@ -37,7 +37,8 @@ namespace DesiLudo3D.Gameplay
         public event Action<ComedyLine, string, int> LinePresented;
 
         public void Initialize(PassAndPlayController controller, BoardBuilder board,
-                               ProfileService profiles, ISpeechSynthesis speech, ulong seed)
+                               ProfileService profiles, ISpeechSynthesis speech, ulong seed,
+                               bool greet = true)
         {
             _controller = controller;
             _board = board;
@@ -49,13 +50,17 @@ namespace DesiLudo3D.Gameplay
             _controller.EventAnimated -= OnEventAnimated;
             _controller.EventAnimated += OnEventAnimated;
 
-            // match-start greetings (cooldown-exempt by design)
-            var seats = _controller.Runner.Config.SeatsInPlay;
-            for (int i = 0; i < seats.Length; i++)
+            // match-start greetings (cooldown-exempt; skipped when resuming
+            // a match — the characters already greeted in the saved session)
+            if (greet)
             {
-                var reaction = new ComedyReaction(i, ComedyContext.Greeting,
-                    ComedyPools.Emotions[(int)ComedyContext.Greeting], -1);
-                TryQueue(reaction, immediate: i == 0);
+                var seats = _controller.Runner.Config.SeatsInPlay;
+                for (int i = 0; i < seats.Length; i++)
+                {
+                    var reaction = new ComedyReaction(i, ComedyContext.Greeting,
+                        ComedyPools.Emotions[(int)ComedyContext.Greeting], -1);
+                    TryQueue(reaction, immediate: i == 0);
+                }
             }
         }
 
