@@ -15,6 +15,7 @@ namespace DesiLudo3D.Gameplay
         public ReactionClipLibrary Clips;
         public ClipReactionOverlay ClipOverlay;
         public ClipLibraryPanel ClipsPanel;
+        public VoicePackPanel VoicePackPanel;
     }
 
     /// <summary>Gray-box identity center (M2): per-seat cards — pick photo
@@ -87,8 +88,13 @@ namespace DesiLudo3D.Gameplay
 
             var close = MakeButton(_panel.transform, "CloseButton",
                 UiStrings.Get("close"), new Color(0.6f, 0.3f, 0.1f), 46);
-            AnchorBottom(close.GetComponent<RectTransform>(), new Vector2(0f, 90f), new Vector2(380f, 120f));
+            AnchorBottom(close.GetComponent<RectTransform>(), new Vector2(220f, 90f), new Vector2(360f, 120f));
             close.onClick.AddListener(Toggle);
+
+            var voicePacks = MakeButton(_panel.transform, "VoicePacksButton",
+                "VOICE PACKS", new Color(0.2f, 0.45f, 0.4f), 38);
+            AnchorBottom(voicePacks.GetComponent<RectTransform>(), new Vector2(-220f, 90f), new Vector2(460f, 120f));
+            voicePacks.onClick.AddListener(() => _deps?.VoicePackPanel?.Open());
 
             _panel.SetActive(false);
         }

@@ -121,6 +121,17 @@ namespace DesiLudo3D.Gameplay
             { "remove",       new[] { "REMOVE", "हटाएँ" } },
             { "done",         new[] { "DONE", "हो गया" } },
 
+            // tutorial
+            { "tutTitle",  new[] { "HOW TO PLAY", "कैसे खेलें" } },
+            { "tut1",      new[] { "Goal: take all 4 of your tokens around the board and into the centre.", "लक्ष्य: अपनी चारों गोलियाँ पूरा चक्कर लगाकर केंद्र में पहुँचाओ।" } },
+            { "tut2",      new[] { "Tap ROLL. A 6 brings a token out of base — and gives an extra roll.", "ROLL दबाओ। छह आने पर गोली बेस से बाहर आती है — और एक और मौका मिलता है।" } },
+            { "tut3",      new[] { "Land on an opponent's token to CUT it — it flies home. Capture = extra roll!", "विरोधी की गोली पर उतरो तो वह कट जाएगी — सीधा घर जाएगी। काटने पर एक और मौका!" } },
+            { "tut4",      new[] { "Gold star cells are safe — no cutting there. Plan your stops.", "सुनहरे तारे वाले खाने सुरक्षित हैं — वहाँ काट नहीं होती।" } },
+            { "tut5",      new[] { "Three 6s in a row? Your whole turn is VOID — progress undone!", "लगातार तीन छह? पूरी बारी रद्द — सारी तरक्की वापस!" } },
+            { "tut6",      new[] { "First to bring all tokens home wins. All the best!", "सबसे पहले चारों गोलियाँ घर पहुँचाने वाला जीतता है। शुभकामनाएँ!" } },
+            { "next",      new[] { "NEXT", "आगे" } },
+            { "skip",      new[] { "SKIP", "छोड़ें" } },
+
             // save / resume
             { "resumeTitle",  new[] { "Resume last match?", "पिछला मैच जारी रखें?" } },
             { "resume",       new[] { "RESUME", "जारी रखें" } },

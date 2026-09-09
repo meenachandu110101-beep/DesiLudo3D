@@ -135,6 +135,27 @@ In the Editor the same button opens a desktop file dialog.
 - Slow-mo capture moment and flashes are gray-box choreography; the M4
   polish pass tunes timings.
 
+## M4 — bot tiers, 150+ dialogue, VO packs, tutorial
+
+### M4 acceptance list (after the M3 list above)
+
+| # | Test | Expected |
+|---|---|---|
+| 25 | Set a seat to BOT, `botTier` 0/1/2 | Easy plays loosely; Hard visibly prefers captures/finishes and avoids landing where it can be cut (tier logic is Python-VALIDATED: Hard beats Easy ≥60% over 120 seeded matches) |
+| 26 | Dialogue variety | 152 original Hinglish lines across 13 contexts × 3 categories — no repeats back-to-back per seat; long sessions keep rotating lines |
+| 27 | **VOICE PACKS** (identity panel) | Per category (MALE/FEMALE/CHILD) × 7 emotions: pick an audio file (Editor: file dialog; Android: system audio picker — NO microphone in-app), ▶ previews, REMOVE deletes. A profile with category FEMALE now SPEAKS the prerecorded female VO at matching emotions (prerecorded VO replaces the interim TTS — A4 precedence) |
+| 28 | First launch | Six-step bilingual tutorial (once; SKIP/NEXT); relaunching does not reshow it |
+| 29 | VO/clip audio | Imported VO plays cleanly from local storage; nothing uploads anywhere |
+
+### M4 known boundaries
+
+- VO import copies files into `persistentDataPath/voice` (mp3/ogg/wav via
+  Unity's audio loader). Recording happens OUTSIDE the game (any recorder),
+  imported via the system picker — no mic permission, no camera (A1).
+- Bot difficulty is a global inspector field in the gray-box; the M5/M6
+  setup screens expose per-seat tiers.
+- Tutorial is text-over-board; M7 polish can add coach-marks/highlights.
+
 ## C# rules validation (no Unity needed, any machine with .NET SDK 8+)
 
 ```bash

@@ -26,6 +26,8 @@ namespace DesiLudo3D.Gameplay
         ReactionClipLibrary _clipLib;
         ClipReactionOverlay _clipOverlay;
         ClipLibraryPanel _clipPanel;
+        VoicePackLibrary _voiceLib;
+        VoicePackPanel _voicePanel;
         System.Action<DesiLudo3D.Core.ComedyLine, string, int> _comedyLineHook;
         SaveService _saves;
         CameraRig _rig;
@@ -180,6 +182,11 @@ namespace DesiLudo3D.Gameplay
                 var panelGo = new GameObject("ClipPanel");
                 _clipPanel = panelGo.AddComponent<ClipLibraryPanel>();
                 _clipPanel.Initialize(_clipLib, VideoImporters.Create(), _clipOverlay);
+
+                _voiceLib = new VoicePackLibrary();
+                var vpGo = new GameObject("VoicePackPanel");
+                _voicePanel = vpGo.AddComponent<VoicePackPanel>();
+                _voicePanel.Initialize(_voiceLib, AudioImporters.Create());
             }
             if (_identity == null)
             {
@@ -192,6 +199,7 @@ namespace DesiLudo3D.Gameplay
                     Clips = _clipLib,
                     ClipOverlay = _clipOverlay,
                     ClipsPanel = _clipPanel,
+                    VoicePackPanel = _voicePanel,
                 }, _board, config, setup.Controllers);
                 _hud.ProfilesPressed += _identity.Toggle;
             }
@@ -220,6 +228,11 @@ namespace DesiLudo3D.Gameplay
                                (ulong)seed, greet: resumed == null);
             _comedy.LinePresented -= _comedyLineHook;
             _comedy.LinePresented += _comedyLineHook;
+            _comedy.VoicePacks = _voiceLib;   // prerecorded VO > TTS (A4)
+
+            // first-launch tutorial (once, over the fresh board)
+            if (!TutorialFlow.AlreadyDone)
+                TutorialFlow.Show(transform);
         }
 
         void Update()

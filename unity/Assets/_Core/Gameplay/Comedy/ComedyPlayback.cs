@@ -36,6 +36,12 @@ namespace DesiLudo3D.Gameplay
         /// clip overlay subscribes here — never camera, A1).</summary>
         public event Action<ComedyLine, string, int> LinePresented;
 
+        /// <summary>Prerecorded VO packs (M4). A4 precedence in Present():
+        /// prerecorded VO > system TTS > bubble-only.</summary>
+        public VoicePackLibrary VoicePacks { get; set; }
+
+        AudioSource _voSource;
+
         public void Initialize(PassAndPlayController controller, BoardBuilder board,
                                ProfileService profiles, ISpeechSynthesis speech, ulong seed,
                                bool greet = true)
@@ -142,10 +148,21 @@ namespace DesiLudo3D.Gameplay
             _bubble = SpeechBubbleView.Show(anchor, text, duration, accent);
             _nextBubbleAt = Time.time + duration + 0.9f;
 
-            // spoken comedy is primary (A4): TTS interim until M4 VO assets;
-            // VO playback will replace this call when a profile has assets.
-            if (_speech.IsAvailable)
+            // spoken comedy is primary (A4). Precedence:
+            // prerecorded VO (profile's character category + emotion) >
+            // free system TTS (interim) > bubble only.
+            var identity = _profiles.Load(q.Slot).ToIdentity();
+            AudioClip vo = VoicePacks != null
+                ? VoicePacks.GetClip(identity.Category, q.Emotion) : null;
+            if (vo != null)
+            {
+                if (_voSource == null) _voSource = gameObject.AddComponent<AudioSource>();
+                _voSource.PlayOneShot(vo, 0.95f);
+            }
+            else if (_speech.IsAvailable)
+            {
                 _speech.Speak(text, UiStrings.SpeechTag);
+            }
 
             LinePresented?.Invoke(q.Line, q.Emotion, q.Slot);
         }

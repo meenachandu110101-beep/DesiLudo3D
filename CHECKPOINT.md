@@ -5,9 +5,9 @@
 
 | Field | Value |
 |---|---|
-| **Updated (UTC)** | 2026-09-09 (M3 authoring pass complete) |
-| **Current milestone** | M3 — Comedy & game feel: VALIDATED engine + AUTHORED Unity layer |
-| **Current task** | M3 code complete. Next: M4 — bot tiers (Easy/Medium/Hard), tutorial, dialogue expansion to 150+, self-recorded VO profiles (male/female/child). Owner validation of M1+M2+M3 runs in parallel via `docs/UNITY-VALIDATION.md` (tests 1–24). |
+| **Updated (UTC)** | 2026-09-09 (M4 authoring pass complete) |
+| **Current milestone** | M4 — Bots, dialogue 150+, VO packs, tutorial: agents VALIDATED / Unity AUTHORED |
+| **Current task** | M4 code complete. Next: M5 — NetTransport seam + LAN play ($0) + EOS-vs-Nakama evaluation → D6 final. Owner validation of M1–M4 runs in parallel via `docs/UNITY-VALIDATION.md` (tests 1–29). |
 | **Spec status** | 🔒 LOCKED — `docs/MASTER-SPEC.md` v1.1 (D1–D14 + amendments A1–A5) |
 
 ## Milestone status
@@ -58,12 +58,23 @@
 | Event streams: EventStarted / EventAnimated / BatchCompleted on PassAndPlayController | ✅ Authored |
 | **Validation** | Python 79/79 ✅ · pools IN SYNC ✅ · rules sync IN SYNC ✅ · all new/edited C# brace/paren-balanced ✅ · owner checklist tests 17–24 ⏳ |
 
+
+### M4 — Bots, dialogue 150+, VO packs, tutorial: 🟡 agents VALIDATED / Unity AUTHORED
+| Component | Status |
+|---|---|
+| `ludo/agent.py` — tiered heuristic agents (Easy/Medium/Hard, threat-aware Hard) | ✅ **VALIDATED** (8 tests; suite 87/87; Hard≥60% over 120 matches) |
+| `Core/Agents.cs` — HeuristicAgent C# mirror + MatchSetup.BotTier + controller/bootstrap wiring | ✅ Authored |
+| Dialogue library 94 → **152 lines** (13 contexts × 3 categories, A3 native pools) | ✅ **VALIDATED** (integrity tests + pools IN SYNC) |
+| VO packs: IAudioImporter (system audio picker, camera-free A1), VoicePackLibrary (local copies + preload), VoicePackPanel; A4 precedence prerecorded VO > TTS > bubble | ✅ Authored |
+| TutorialFlow — six bilingual first-launch steps (once-flag) | ✅ Authored |
+| **Validation** | Python 87/87 ✅ · comedy pools IN SYNC ✅ · rules sync IN SYNC ✅ · all touched C# balanced ✅ · owner checklist tests 25–29 ⏳ |
+
 ## Remaining (milestone order)
 
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` (C# M0 closure) ② Unity first-open checklist (`docs/UNITY-VALIDATION.md`, M1 closure)
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity first-open checklist — now covers M1 tests 1–9 + M2 tests 10–16 (NativeGallery package auto-resolves on first open; internet needed once)
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity checklist tests 1–24 (M1 gray-box, M2 identity, M3 comedy/UI/save/look/clips)
-- [ ] **M4** bots (Easy/Medium/Hard), tutorial, dialogue expansion (150+), self-recorded VO (male/female/child profiles)
+- [ ] **M5** NetTransport implementation + LAN play ($0), EOS-vs-Nakama evaluation → D6 final decision
 - [ ] **M5** NetTransport + LAN play ($0) + EOS-vs-Nakama evaluation → D6 final
 - [ ] **M6** internet play: room codes, commit–reveal over the wire, reconnect, profile/clip sync
 - [ ] **M7** hardening: device lab, thermal/battery, AAB ≤80MB, Play compliance (API 36, Data Safety: no camera permission), closed testing
