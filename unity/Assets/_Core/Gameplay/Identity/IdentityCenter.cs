@@ -62,7 +62,7 @@ namespace DesiLudo3D.Gameplay
             rect.offsetMax = Vector2.zero;
             _panel.GetComponent<Image>().color = new Color(0.08f, 0.05f, 0.02f, 0.94f);
 
-            var title = MakeText(_panel.transform, "Title", "PROFILES — who is playing?",
+            var title = MakeText(_panel.transform, "Title", UiStrings.Get("profilesTitle"),
                 58, FontStyle.Bold, new Color(1f, 0.85f, 0.6f));
             AnchorTop(title.rectTransform, new Vector2(0f, -100f), new Vector2(1000f, 120f));
 
@@ -72,7 +72,8 @@ namespace DesiLudo3D.Gameplay
             cardsRect.Stretch();
             RefreshCards();
 
-            var close = MakeButton(_panel.transform, "CloseButton", "CLOSE", new Color(0.6f, 0.3f, 0.1f), 46);
+            var close = MakeButton(_panel.transform, "CloseButton",
+                UiStrings.Get("close"), new Color(0.6f, 0.3f, 0.1f), 46);
             AnchorBottom(close.GetComponent<RectTransform>(), new Vector2(0f, 90f), new Vector2(380f, 120f));
             close.onClick.AddListener(Toggle);
 
@@ -93,30 +94,31 @@ namespace DesiLudo3D.Gameplay
 
             var seatColor = ToUiColor(BoardBuilder.ColorOf(seat));
             var label = MakeText(card.transform, "SeatLabel",
-                Seats.Name(seat) + (bot ? " (BOT) — " : " — ") + identity.Name,
+                Seats.Name(seat) + (bot ? " (" + UiStrings.Get("botTag") + ") — " : " — ")
+                    + identity.Name,
                 42, FontStyle.Bold, seatColor);
             CenterAt(label.rectTransform, new Vector2(0f, 105f), new Vector2(860f, 70f));
 
             var category = MakeButton(card.transform, "CategoryButton",
-                "VOICE: " + identity.Category.ToString().ToUpper(),
+                UiStrings.F("voice", CategoryLabel(identity.Category)),
                 new Color(0.25f, 0.35f, 0.55f), 34);
             CenterAt(category.GetComponent<RectTransform>(), new Vector2(-230f, 25f), new Vector2(400f, 110f));
             category.onClick.AddListener(() => CycleCategory(slot, seat));
 
             var personality = MakeButton(card.transform, "PersonalityButton",
-                "STYLE: " + PersonalityLabel(identity.Personality),
+                UiStrings.F("style", PersonalityLabel(identity.Personality)),
                 new Color(0.45f, 0.3f, 0.55f), 32);
             CenterAt(personality.GetComponent<RectTransform>(), new Vector2(230f, 25f), new Vector2(400f, 110f));
             personality.onClick.AddListener(() => CyclePersonality(slot));
 
             var photo = MakeButton(card.transform, "PhotoButton",
-                string.IsNullOrEmpty(data.photoPath) ? "PICK PHOTO" : "REPLACE PHOTO",
+                UiStrings.Get(string.IsNullOrEmpty(data.photoPath) ? "pickPhoto" : "replacePhoto"),
                 new Color(0.2f, 0.5f, 0.3f), 34);
             CenterAt(photo.GetComponent<RectTransform>(), new Vector2(-130f, -100f), new Vector2(580f, 110f));
             photo.onClick.AddListener(() => PickPhoto(slot, seat));
 
-            var clear = MakeButton(card.transform, "ClearButton", "CLEAR",
-                new Color(0.6f, 0.25f, 0.25f), 30);
+            var clear = MakeButton(card.transform, "ClearButton",
+                UiStrings.Get("clear"), new Color(0.6f, 0.25f, 0.25f), 30);
             CenterAt(clear.GetComponent<RectTransform>(), new Vector2(330f, -100f), new Vector2(200f, 110f));
             clear.onClick.AddListener(() => ClearPhoto(slot, seat));
         }
@@ -239,12 +241,34 @@ namespace DesiLudo3D.Gameplay
         {
             switch (p)
             {
-                case PersonalityStyle.Overconfident: return "OVERCONFIDENT";
-                case PersonalityStyle.DramaKing: return "DRAMA KING";
-                case PersonalityStyle.SweetButDeadly: return "SWEET-BUT-DEADLY";
-                case PersonalityStyle.Excited: return "EXCITED";
-                default: return "BALANCED";
+                case PersonalityStyle.Overconfident: return UiStrings.Get("styOverconfident");
+                case PersonalityStyle.DramaKing: return UiStrings.Get("styDrama");
+                case PersonalityStyle.SweetButDeadly: return UiStrings.Get("stySweet");
+                case PersonalityStyle.Excited: return UiStrings.Get("styExcited");
+                default: return UiStrings.Get("styBalanced");
             }
+        }
+
+        static string CategoryLabel(CharacterCategory c)
+        {
+            switch (c)
+            {
+                case CharacterCategory.Female: return UiStrings.Get("catFemale");
+                case CharacterCategory.Child: return UiStrings.Get("catChild");
+                default: return UiStrings.Get("catMale");
+            }
+        }
+
+        /// <summary>Re-render after a live EN/HI language toggle.</summary>
+        public void RefreshLanguage()
+        {
+            if (_panel == null) return;
+            var title = _panel.transform.Find("Title");
+            if (title != null) title.GetComponent<Text>().text = UiStrings.Get("profilesTitle");
+            var close = _panel.transform.Find("CloseButton");
+            if (close != null)
+                close.GetComponentInChildren<Text>().text = UiStrings.Get("close");
+            RefreshCards();
         }
 
         // -------------------------------------------------------- ui helpers

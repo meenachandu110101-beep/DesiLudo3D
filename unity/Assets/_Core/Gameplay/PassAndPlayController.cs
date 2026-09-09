@@ -24,6 +24,14 @@ namespace DesiLudo3D.Gameplay
         bool _processing;
         bool _restartRequested;
 
+        /// <summary>The authoritative host runner (save/resume, comedy, and
+        /// later NetTransport all read from here).</summary>
+        public MatchRunner Runner => _runner;
+
+        /// <summary>Raised after each event's animation completes — the
+        /// comedy layer, R1 clip overlay and auto-save subscribe here.</summary>
+        public event Action<GameEvent> EventAnimated;
+
         public void Initialize(MatchSetup setup, BoardBuilder board, DiceView dice,
                                CameraRig rig, HudView hud, int seed)
         {
@@ -129,7 +137,7 @@ namespace DesiLudo3D.Gameplay
         {
             if (error != null)
             {
-                _hud.Tick("Illegal: " + error);
+                _hud.Tick(UiStrings.F("illegal", error));
                 return;
             }
             StartCoroutine(ProcessBatch(events));
@@ -139,7 +147,10 @@ namespace DesiLudo3D.Gameplay
         {
             _processing = true;
             foreach (GameEvent e in events)
+            {
                 yield return HandleEvent(e);
+                EventAnimated?.Invoke(e);
+            }
             _processing = false;
             RefreshHud();
             MaybeStartBotTurn();
@@ -156,7 +167,7 @@ namespace DesiLudo3D.Gameplay
                     break;
 
                 case NoLegalMove n:
-                    _hud.Tick(Seats.Name(n.Seat) + " has no legal move (" + n.Die + ")");
+                    _hud.Tick(UiStrings.F("noMove", Seats.Name(n.Seat), n.Die));
                     yield return new WaitForSeconds(0.7f);
                     break;
 
@@ -167,23 +178,23 @@ namespace DesiLudo3D.Gameplay
                 case TokenCaptured c:
                     {
                         var victim = _board.Tokens[(int)c.VictimSeat * BoardGeometry.TokensPerSeat + c.VictimIndex];
-                        _hud.Tick(Seats.Name(c.AttackerSeat) + " cut " + Seats.Name(c.VictimSeat) + "'s token!");
+                        _hud.Tick(UiStrings.F("cut", Seats.Name(c.AttackerSeat), Seats.Name(c.VictimSeat)));
                         yield return victim.AnimateCaptureHome();
                         break;
                     }
 
                 case TokenFinished f:
-                    _hud.Tick(Seats.Name(f.Seat) + "'s token reached home!");
+                    _hud.Tick(UiStrings.F("tokenHome", Seats.Name(f.Seat)));
                     yield return new WaitForSeconds(0.35f);
                     break;
 
                 case PlayerFinished p:
-                    _hud.Tick(Seats.Name(p.Seat) + " FINISHED — place " + p.Place + "!");
+                    _hud.Tick(UiStrings.F("playerFinish", Seats.Name(p.Seat), p.Place));
                     yield return new WaitForSeconds(1.0f);
                     break;
 
                 case TurnVoided v:
-                    _hud.Tick("Three sixes! " + Seats.Name(v.Seat) + "'s turn is VOID!");
+                    _hud.Tick(UiStrings.F("voided", Seats.Name(v.Seat)));
                     yield return new WaitForSeconds(1.0f);
                     break;
 
@@ -193,7 +204,7 @@ namespace DesiLudo3D.Gameplay
                     break;
 
                 case PlayerLeft l:
-                    _hud.Tick(Seats.Name(l.Seat) + " left the match");
+                    _hud.Tick(UiStrings.F("left", Seats.Name(l.Seat)));
                     break;
 
                 case MatchEnded end:
@@ -222,10 +233,10 @@ namespace DesiLudo3D.Gameplay
 
         void ShowResults(MatchEnded end)
         {
-            var lines = new System.Text.StringBuilder("MATCH OVER!\n\n");
+            var lines = new System.Text.StringBuilder(UiStrings.Get("matchOver") + "\n\n");
             foreach (Standing s in end.Standings)
                 lines.Append("#").Append(s.Place).Append("  ").Append(Seats.Name(s.Seat))
-                     .Append("  (").Append(s.TokensHome).Append(" home)\n");
+                     .Append("  ").Append(UiStrings.F("homeCount", s.TokensHome)).Append("\n");
             _hud.ShowResults(lines.ToString());
         }
 
@@ -260,7 +271,7 @@ namespace DesiLudo3D.Gameplay
             }
         }
 
-        void RefreshHud()
+        public void RefreshHud()
         {
             if (_runner.IsMatchOver) return;
             bool human = _setup.KindFor(_runner.CurrentSeat) == ControllerKind.Human;

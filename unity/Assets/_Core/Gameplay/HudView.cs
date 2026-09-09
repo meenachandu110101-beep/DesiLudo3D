@@ -13,6 +13,7 @@ namespace DesiLudo3D.Gameplay
         public event Action RollPressed;
         public event Action RestartPressed;
         public event Action ProfilesPressed;
+        public event Action LanguageChanged;
 
         Text _turnLabel;
         Text _dieLabel;
@@ -38,7 +39,7 @@ namespace DesiLudo3D.Gameplay
 
             Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-            _turnLabel = MakeText(canvasGo.transform, "TurnLabel", "DesiLudo3D — M1 gray-box",
+            _turnLabel = MakeText(canvasGo.transform, "TurnLabel", UiStrings.Get("title"),
                 56, FontStyle.Bold, new Color(0.2f, 0.1f, 0.05f));
             Anchor(_turnLabel.rectTransform, TextAnchor.UpperCenter, new Vector2(0f, -40f), new Vector2(1000f, 90f));
 
@@ -50,7 +51,7 @@ namespace DesiLudo3D.Gameplay
                 new Color(0.25f, 0.25f, 0.25f));
             Anchor(_ticker.rectTransform, TextAnchor.LowerCenter, new Vector2(0f, 260f), new Vector2(1000f, 120f));
 
-            _rollButton = MakeButton(canvasGo.transform, "RollButton", "ROLL", font,
+            _rollButton = MakeButton(canvasGo.transform, "RollButton", UiStrings.Get("roll"), font,
                 new Color(0.95f, 0.55f, 0.1f));
             Anchor(_rollButton.GetComponent<RectTransform>(), TextAnchor.LowerCenter,
                 new Vector2(0f, 100f), new Vector2(420f, 130f));
@@ -68,20 +69,35 @@ namespace DesiLudo3D.Gameplay
             _resultsText = MakeText(_resultsPanel.transform, "ResultsText", "", 64, FontStyle.Bold, Color.white);
             Anchor(_resultsText.rectTransform, TextAnchor.MiddleCenter, new Vector2(0f, 120f), new Vector2(1000f, 900f));
 
-            _restartButton = MakeButton(_resultsPanel.transform, "RestartButton", "PLAY AGAIN", font,
-                new Color(0.2f, 0.65f, 0.3f));
+            _restartButton = MakeButton(_resultsPanel.transform, "RestartButton",
+                UiStrings.Get("playAgain"), font, new Color(0.2f, 0.65f, 0.3f));
             Anchor(_restartButton.GetComponent<RectTransform>(), TextAnchor.LowerCenter,
                 new Vector2(0f, 160f), new Vector2(460f, 140f));
             _restartButton.onClick.AddListener(() => RestartPressed?.Invoke());
 
-            var profilesButton = MakeButton(canvasGo.transform, "ProfilesButton", "PROFILES", font,
-                new Color(0.5f, 0.25f, 0.55f));
+            var profilesButton = MakeButton(canvasGo.transform, "ProfilesButton",
+                UiStrings.Get("profiles"), font, new Color(0.5f, 0.25f, 0.55f));
             var pr = profilesButton.GetComponent<RectTransform>();
             pr.anchorMin = new Vector2(1f, 1f);
             pr.anchorMax = new Vector2(1f, 1f);
-            pr.anchoredPosition = new Vector2(-220f, -80f);
-            pr.sizeDelta = new Vector2(380f, 110f);
+            pr.anchoredPosition = new Vector2(-230f, -80f);
+            pr.sizeDelta = new Vector2(420f, 110f);
             profilesButton.onClick.AddListener(() => ProfilesPressed?.Invoke());
+
+            // EN/HI language toggle (D8) — label shows the language you'd switch to
+            var langButton = MakeButton(canvasGo.transform, "LangButton",
+                UiStrings.Get("langName"), font, new Color(0.15f, 0.4f, 0.45f));
+            var lr = langButton.GetComponent<RectTransform>();
+            lr.anchorMin = new Vector2(0f, 1f);
+            lr.anchorMax = new Vector2(0f, 1f);
+            lr.anchoredPosition = new Vector2(120f, -80f);
+            lr.sizeDelta = new Vector2(180f, 110f);
+            langButton.onClick.AddListener(() =>
+            {
+                UiStrings.ToggleLang();
+                langButton.GetComponentInChildren<Text>().text = UiStrings.Get("langName");
+                LanguageChanged?.Invoke();
+            });
 
             _resultsPanel.SetActive(false);
         }
@@ -90,9 +106,18 @@ namespace DesiLudo3D.Gameplay
 
         public void SetTurn(string seatName, bool human, bool canRoll, bool canMove)
         {
-            _turnLabel.text = seatName + (human ? "'s turn" : " (bot)");
+            _turnLabel.text = UiStrings.F(human ? "turn" : "turnBot", seatName);
             _rollButton.interactable = canRoll;
-            _rollButton.GetComponentInChildren<Text>().text = canMove ? "TAP A TOKEN" : "ROLL";
+            _rollButton.GetComponentInChildren<Text>().text =
+                canMove ? UiStrings.Get("tapToken") : UiStrings.Get("roll");
+        }
+
+        /// <summary>Re-render every static label (language toggle).</summary>
+        public void RefreshStrings()
+        {
+            _rollButton.GetComponentInChildren<Text>().text =
+                _rollButton.interactable ? UiStrings.Get("roll") : UiStrings.Get("roll");
+            _restartButton.GetComponentInChildren<Text>().text = UiStrings.Get("playAgain");
         }
 
         public void ShowDie(int value) => _dieLabel.text = value.ToString();

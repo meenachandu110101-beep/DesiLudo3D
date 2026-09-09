@@ -20,6 +20,8 @@ namespace DesiLudo3D.Gameplay
         public bool blockades = true;     // D4 toggle (default ON)
         public int seed = 12345;
 
+        ProfileService _profiles;
+        ISpeechSynthesis _speech;
         CameraRig _rig;
         BoardBuilder _board;
         PassAndPlayController _controller;
@@ -78,10 +80,23 @@ namespace DesiLudo3D.Gameplay
             _controller.Initialize(setup, _board, _dice, _rig, _hud, seed);
 
             // identity layer (M2): profiles + photo medallions (system picker only — A1)
-            var profiles = new ProfileService(new FileProfileStore());
+            var profiles = _profiles = new ProfileService(new FileProfileStore());
             _identity = new GameObject("IdentityCenter").AddComponent<IdentityCenter>();
             _identity.Initialize(profiles, PhotoImporters.Create(), _board, config, setup.Controllers);
             _hud.ProfilesPressed += _identity.Toggle;
+
+            // comedy layer (M3): validated Core engine -> spoken lines + bubbles
+            _comedy = new GameObject("ComedyPlayback").AddComponent<ComedyPlayback>();
+            _comedy.Initialize(_controller, _board, profiles,
+                               SpeechSynthesis.Create(), (ulong)seed);
+
+            // live EN/HI language toggle (D8)
+            _hud.LanguageChanged += () =>
+            {
+                _controller.RefreshHud();
+                _hud.RefreshStrings();
+                _identity.RefreshLanguage();
+            };
         }
 
         void Update()
@@ -96,7 +111,11 @@ namespace DesiLudo3D.Gameplay
         void RebuildMatch()
         {
             seed = seed * 1103515245 + 12345;    // new match, new dice
-            _controller.Initialize(BuildSetup(), _board, _dice, _rig, _hud, seed);
+            var setup = BuildSetup();
+            _controller.Initialize(setup, _board, _dice, _rig, _hud, seed);
+            _comedy.Initialize(_controller, _board, _profiles,
+                               _speech ?? (_speech = SpeechSynthesis.Create()),
+                               (ulong)seed);
         }
 
         MatchSetup BuildSetup()
