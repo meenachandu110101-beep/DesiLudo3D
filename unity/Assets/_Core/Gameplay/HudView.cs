@@ -14,6 +14,7 @@ namespace DesiLudo3D.Gameplay
         public event Action RestartPressed;
         public event Action ProfilesPressed;
         public event Action LanguageChanged;
+        public event Action OnlinePressed;
 
         Text _turnLabel;
         Text _dieLabel;
@@ -92,6 +93,15 @@ namespace DesiLudo3D.Gameplay
             lr.anchorMax = new Vector2(0f, 1f);
             lr.anchoredPosition = new Vector2(120f, -80f);
             lr.sizeDelta = new Vector2(180f, 110f);
+
+            var onlineButton = MakeButton(canvasGo.transform, "OnlineButton", "ONLINE",
+                font, new Color(0.15f, 0.35f, 0.55f));
+            var or_ = onlineButton.GetComponent<RectTransform>();
+            or_.anchorMin = new Vector2(0f, 1f);
+            or_.anchorMax = new Vector2(0f, 1f);
+            or_.anchoredPosition = new Vector2(120f, -210f);
+            or_.sizeDelta = new Vector2(180f, 110f);
+            onlineButton.onClick.AddListener(() => OnlinePressed?.Invoke());
             langButton.onClick.AddListener(() =>
             {
                 UiStrings.ToggleLang();

@@ -10,20 +10,25 @@ namespace DesiLudo3D.Gameplay
     /// Presentation-only — it never touches rules state.</summary>
     public class GameFeel : MonoBehaviour
     {
-        PassAndPlayController _controller;
+        IBoardStateView _view;
         Image _flash;
         Coroutine _slowmo;
 
-        public void Attach(PassAndPlayController controller)
+        /// <summary>Attach to any game mode (offline/online host/online
+        /// guest) — the feel layer is view-agnostic.</summary>
+        public void AttachView(IBoardStateView view)
         {
-            if (_controller != null) _controller.EventStarted -= OnEvent;
-            _controller = controller;
-            _controller.EventStarted += OnEvent;
+            if (_view != null) _view.EventStartedView -= OnEvent;
+            _view = view;
+            _view.EventStartedView += OnEvent;
         }
+
+        /// <summary>Offline convenience (kept for the M3 call sites).</summary>
+        public void Attach(PassAndPlayController controller) => AttachView(controller);
 
         void OnDestroy()
         {
-            if (_controller != null) _controller.EventStarted -= OnEvent;
+            if (_view != null) _view.EventStartedView -= OnEvent;
         }
 
         void OnEvent(GameEvent e)
@@ -90,7 +95,7 @@ namespace DesiLudo3D.Gameplay
 
         IEnumerator Shake(float seconds, float strength)
         {
-            Camera cam = _controller != null ? Camera.main : null;
+            Camera cam = _view != null ? Camera.main : null;
             if (cam == null) yield break;
             Transform t = cam.transform;
             Vector3 original = t.localPosition;

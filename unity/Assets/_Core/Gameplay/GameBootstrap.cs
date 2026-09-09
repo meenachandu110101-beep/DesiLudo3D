@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using DesiLudo3D.Core;
 using DesiLudo3D.Rules;
 using UnityEngine;
@@ -38,6 +40,7 @@ namespace DesiLudo3D.Gameplay
         IdentityCenter _identity;
         ComedyPlayback _comedy;
         GameFeel _feel;
+        OnlineLobby _lobby;
         bool _started;
 
         void Start()
@@ -242,6 +245,156 @@ namespace DesiLudo3D.Gameplay
             {
                 RebuildMatch();
             }
+        }
+
+        // ================================================================ M5 online
+
+        /// <summary>Teardown the offline match objects; camera/light/HUD/dice
+        /// survive (mode-agnostic). The online controllers rebuild the rest.</summary>
+        void TeardownOfflineMatch()
+        {
+            if (_controller != null) Destroy(_controller.gameObject);
+            if (_comedy != null) Destroy(_comedy.gameObject);
+            if (_feel != null) Destroy(_feel.gameObject);
+            if (_identity != null) Destroy(_identity.gameObject);
+            if (_board != null) Destroy(_board.gameObject);
+            _controller = null;
+            _comedy = null;
+            _feel = null;
+            _identity = null;
+            _board = null;
+        }
+
+        /// <summary>Lobby callback: the fair stream began on the host —
+        /// build the host-side online scene around the authoritative session.</summary>
+        public void EnterOnlineHostMode(DesiLudo3D.Core.NetHostSession session,
+                                        LanTransport.HostSide transport, int seed)
+        {
+            TeardownOfflineMatch();
+
+            var config = new MatchConfig(session.Seats, blockades: session.Blockades,
+                threeSixes: true, captureExtra: true, placings: true);
+            _board = new GameObject("BoardBuilder").AddComponent<BoardBuilder>();
+            _board.Build(config);
+
+            var seatKinds = new Dictionary<Seat, string>();
+            foreach (var kv in session.SeatOwners)
+                seatKinds[kv.Key] = kv.Value == "__host__" ? "host" : kv.Value;
+
+            var host = new GameObject("OnlineHost").AddComponent<OnlineHostController>();
+            host.Initialize(session, transport, _board, _dice, _rig, _hud,
+                            _profiles ?? new ProfileService(new FileProfileStore()),
+                            seed, seatKinds, botTier);
+            WireSharedOnline(host, config, seed);
+        }
+
+        /// <summary>Lobby callback: connected to a host — wait for the
+        /// config (board build), reveal, then play from the shadow state.</summary>
+        public void EnterOnlineGuestMode(DesiLudo3D.Core.NetGuestSession guest,
+                                         LanTransport.GuestSide transport)
+        {
+            TeardownOfflineMatch();
+            StartCoroutine(GuestFlow(guest, transport));
+        }
+
+        IEnumerator GuestFlow(DesiLudo3D.Core.NetGuestSession guest,
+                              LanTransport.GuestSide transport)
+        {
+            // 1) wait for the start message (config + commitments)
+            float waited = 0f;
+            while (guest.Config == null && waited < 20f)
+            {
+                waited += Time.deltaTime;
+                yield return null;
+            }
+            if (guest.Config == null)
+            {
+                Debug.LogWarning("[DesiLudo3D] host never sent the match config");
+                yield break;
+            }
+
+            // 2) all commitments are now visible -> safe to reveal
+            guest.SendReveal();
+
+            // 3) build the guest scene for this config
+            _board = new GameObject("BoardBuilder").AddComponent<BoardBuilder>();
+            _board.Build(guest.Config);
+            var guestCtrl = new GameObject("OnlineGuest").AddComponent<OnlineGuestController>();
+            guestCtrl.Initialize(guest, transport, _board, _dice, _rig, _hud);
+            guestCtrl.BindShadowToAnimator();
+
+            // 4) wait for the seeds (shadow state begins)
+            waited = 0f;
+            while (guest.State == null && waited < 20f)
+            {
+                waited += Time.deltaTime;
+                yield return null;
+            }
+            if (guest.State == null)
+            {
+                Debug.LogWarning("[DesiLudo3D] host never revealed the seeds");
+                yield break;
+            }
+            guestCtrl.OnShadowReady();
+
+            WireSharedOnline(guestCtrl, guest.Config, seed);
+        }
+
+        /// <summary>Shared online wiring: identity, comedy, feel — the same
+        /// systems as offline, over the IBoardStateView abstraction.</summary>
+        void WireSharedOnline(IBoardStateView view, MatchConfig config, int seed)
+        {
+            if (_profiles == null) _profiles = new ProfileService(new FileProfileStore());
+            if (_clipLib == null)
+            {
+                _clipLib = new ReactionClipLibrary();
+                var overlayGo = new GameObject("ClipOverlay");
+                _clipOverlay = overlayGo.AddComponent<ClipReactionOverlay>();
+                _clipOverlay.Initialize();
+                var panelGo = new GameObject("ClipPanel");
+                _clipPanel = panelGo.AddComponent<ClipLibraryPanel>();
+                _clipPanel.Initialize(_clipLib, VideoImporters.Create(), _clipOverlay);
+                _voiceLib = new VoicePackLibrary();
+                var vpGo = new GameObject("VoicePackPanel");
+                _voicePanel = vpGo.AddComponent<VoicePackPanel>();
+                _voicePanel.Initialize(_voiceLib, AudioImporters.Create());
+            }
+            if (_identity == null)
+            {
+                _identity = new GameObject("IdentityCenter").AddComponent<IdentityCenter>();
+                _identity.Initialize(new IdentityDeps
+                {
+                    Profiles = _profiles,
+                    PhotoImporter = PhotoImporters.Create(),
+                    VideoImporter = VideoImporters.Create(),
+                    Clips = _clipLib,
+                    ClipOverlay = _clipOverlay,
+                    ClipsPanel = _clipPanel,
+                    VoicePackPanel = _voicePanel,
+                }, _board, config, null);
+                _hud.ProfilesPressed += _identity.Toggle;
+            }
+            if (_feel == null)
+            {
+                _feel = new GameObject("GameFeel").AddComponent<GameFeel>();
+            }
+            if (_comedy == null)
+            {
+                _comedy = new GameObject("ComedyPlayback").AddComponent<ComedyPlayback>();
+            }
+            // rebind feel + comedy to the new view
+            _feel.AttachView(view);
+            _comedy.Initialize(view, _board, _profiles,
+                               _speech ?? (_speech = SpeechSynthesis.Create()),
+                               (ulong)seed, greet: true);
+            _comedy.VoicePacks = _voiceLib;
+            if (_comedyLineHook == null)
+            {
+                _comedyLineHook = (line, emotion, slot) =>
+                    _clipOverlay.PlayForSlot(_clipLib, slot, emotion);
+            }
+            _comedy.LinePresented -= _comedyLineHook;
+            _comedy.LinePresented += _comedyLineHook;
         }
 
         void RebuildMatch()

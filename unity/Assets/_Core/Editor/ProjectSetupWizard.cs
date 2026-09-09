@@ -40,6 +40,26 @@ namespace DesiLudo3D.EditorTools
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.Android, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.Android, new[] { GraphicsDeviceType.OpenGLES3 });
 
+            // Online play (M5): the P2P transport needs INTERNET in the
+            // manifest (covers LAN/Wi-Fi sockets too). No other permissions:
+            // no camera, no microphone, no storage (A1 + spec §12).
+            // reflection: the InternetAccess enum's namespace moved between
+            // Unity versions — this compiles and runs on all of them
+            try
+            {
+                var prop = typeof(PlayerSettings.Android).GetProperty("internetAccess");
+                if (prop != null)
+                {
+                    var enumType = prop.PropertyType;
+                    prop.SetValue(null, System.Enum.Parse(enumType, "Require"), null);
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[DesiLudo3D] Could not set internetAccess automatically: "
+                    + e.Message + " — set Player > Internet Access = Require manually.");
+            }
+
             TrySetActiveInputHandlerBoth();
 
             AssetDatabase.SaveAssets();

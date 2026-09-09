@@ -14,7 +14,7 @@ namespace DesiLudo3D.Gameplay
     /// save/resume hooks attach to the same events.</summary>
     public class ComedyPlayback : MonoBehaviour
     {
-        PassAndPlayController _controller;
+        IBoardStateView _view;
         BoardBuilder _board;
         ProfileService _profiles;
         ISpeechSynthesis _speech;
@@ -42,25 +42,25 @@ namespace DesiLudo3D.Gameplay
 
         AudioSource _voSource;
 
-        public void Initialize(PassAndPlayController controller, BoardBuilder board,
+        public void Initialize(IBoardStateView view, BoardBuilder board,
                                ProfileService profiles, ISpeechSynthesis speech, ulong seed,
                                bool greet = true)
         {
-            _controller = controller;
+            _view = view;
             _board = board;
             _profiles = profiles;
             _speech = speech ?? new StubSpeechSynthesis();
             _director = new ComedyDirector(seed);
             _queue.Clear();
 
-            _controller.EventAnimated -= OnEventAnimated;
-            _controller.EventAnimated += OnEventAnimated;
+            _view.EventAnimatedView -= OnEventAnimated;
+            _view.EventAnimatedView += OnEventAnimated;
 
             // match-start greetings (cooldown-exempt; skipped when resuming
             // a match — the characters already greeted in the saved session)
             if (greet)
             {
-                var seats = _controller.Runner.Config.SeatsInPlay;
+                var seats = _view.SeatsInPlay;
                 for (int i = 0; i < seats.Length; i++)
                 {
                     var reaction = new ComedyReaction(i, ComedyContext.Greeting,
@@ -72,12 +72,12 @@ namespace DesiLudo3D.Gameplay
 
         void OnDestroy()
         {
-            if (_controller != null) _controller.EventAnimated -= OnEventAnimated;
+            if (_view != null) _view.EventAnimatedView -= OnEventAnimated;
         }
 
         void OnEventAnimated(GameEvent e)
         {
-            Seat[] seats = _controller.Runner.Config.SeatsInPlay;
+            Seat[] seats = _view.SeatsInPlay;
             foreach (ComedyReaction r in ComedyEvents.FromGameEvent(e, seats))
                 TryQueue(r, immediate: false);
         }
@@ -105,7 +105,7 @@ namespace DesiLudo3D.Gameplay
 
         TokenView AnchorToken(int seatIndex, int tokenIndex)
         {
-            Seat[] seats = _controller.Runner.Config.SeatsInPlay;
+            Seat[] seats = _view.SeatsInPlay;
             Seat seat = seats[seatIndex];
             TokenView best = null;
             if (tokenIndex >= 0 && tokenIndex < BoardGeometry.TokensPerSeat)
@@ -120,7 +120,7 @@ namespace DesiLudo3D.Gameplay
                 {
                     var t = _board.Tokens[(int)seat * BoardGeometry.TokensPerSeat + i];
                     if (t == null) continue;
-                    int p = _controller.Runner.State.Token(seat, i).Progress;
+                    int p = _view.TokenProgressOf(seat, i);
                     if (p > bestProgress) { bestProgress = p; best = t; }
                 }
             }

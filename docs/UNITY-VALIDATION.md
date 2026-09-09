@@ -156,6 +156,39 @@ In the Editor the same button opens a desktop file dialog.
   setup screens expose per-seat tiers.
 - Tutorial is text-over-board; M7 polish can add coach-marks/highlights.
 
+## M5 — Online multiplayer (LAN / hotspot / direct IP — P2P, D6 final)
+
+**Protocol status:** the online protocol is machine-VALIDATED (98/98 Python
+tests incl. fault injection: drop / tamper / disconnect / reconnect). The
+Unity-side transport + controllers are AUTHORED — the tests below close them
+on real devices. No camera, no microphone, no storage permission — only
+INTERNET (see `docs/D6-TRANSPORT-DECISION.md`).
+
+### M5 acceptance list (two Android devices, same Wi-Fi or one hotspot)
+
+| # | Test | Expected |
+|---|---|---|
+| 30 | Device A: ONLINE → CREATE ROOM | Room code shown (e.g. K7QP2M); beacon broadcasting |
+| 31 | Device B: ONLINE → room appears in list → tap | Joins; both screens show the updated player count |
+| 32 | Host: START (with empty seats) | Empty seats become bots; match begins on BOTH devices after commit–reveal completes |
+| 33 | Play a few turns | Identical boards/animations on both devices; host device controls its seat, guest device its own; guest sees "waiting" during others' turns |
+| 34 | Capture on any device | Same comedy line + SFX + slow-mo on both devices |
+| 35 | Kill the guest app mid-match, relaunch, ONLINE → reconnect to same room | Guest resumes from its last command (tokens snap to the true state) and play continues |
+| 36 | Airplane-mode the guest for 10s mid-turn, then back | Guest detects the gap, auto-resyncs, play continues |
+| 37 | Direct IP join (manual `ip:CODE`) | Same behavior over any reachable network (e.g. phone hotspot) |
+| 38 | Fairness spot-check | On the guest, the console shows no `unfair-die`/`hash-mismatch` errors after a full match (they are logged loudly if the host ever lied) |
+
+### M5 known boundaries
+
+- UDP discovery may be blocked on some Wi-Fi networks (AP isolation) —
+  manual `ip:CODE` entry always works.
+- The gray-box lobby is one panel; the M7 polish pass styles it.
+- Internet play across arbitrary NATs (different cities) needs the host
+  reachable (port-forward/public IP) or the post-V1 EOS Relay drop-in — by
+  the D6 decision, no cloud dependency ships in V1.
+- Online autosave: offline matches auto-save; online hosts resync guests
+  from the signed command log instead (the authoritative equivalent).
+
 ## C# rules validation (no Unity needed, any machine with .NET SDK 8+)
 
 ```bash

@@ -6,39 +6,68 @@ using UnityEngine;
 
 namespace DesiLudo3D.Gameplay
 {
-    /// <summary>Drives a local match: pass-and-play humans + placeholder bots,
-    /// event-to-animation pipeline, camera rotation, HUD state. M3 layers the
-    /// ReactionDirector (voice/bubble comedy) onto the same event stream; M5/M6
-    /// swap the local input sources for NetTransport commands — this controller
-    /// is the offline reference implementation of the MatchRunner host loop.</summary>
-    public class PassAndPlayController : MonoBehaviour
+    /// <summary>Board-state view consumed by ComedyPlayback — implemented by
+    /// the offline controller AND the online host/guest controllers so the
+    /// comedy layer works identically in every mode.</summary>
+    public interface IBoardStateView
     {
-        MatchRunner _runner;
+        Seat[] SeatsInPlay { get; }
+        int TokenProgressOf(Seat seat, int tokenIndex);
+        bool IsMatchOver { get; }
+        /// <summary>Seat whose turn it is right now (null when over).</summary>
+        Seat CurrentSeat { get; }
+        event System.Action<GameEvent> EventAnimatedView;
+        /// <summary>Instant-feedback stream (SFX/slow-mo), pre-animation.</summary>
+        event System.Action<GameEvent> EventStartedView;
+    }
+
+    /// <summary>Drives a local match: pass-and-play humans + tiered bots,
+    /// event-to-animation pipeline (via the shared EventAnimator), camera
+    /// rotation, HUD state. The M5+ online controllers reuse the animator;
+    /// M6 swaps local input for NetTransport commands — this controller is
+    /// the offline reference implementation of the host loop.</summary>
+    public class PassAndPlayController : MonoBehaviour, IBoardStateView
+    {
+        protected MatchRunner _runner;
         MatchSetup _setup;
-        BoardBuilder _board;
-        DiceView _dice;
-        CameraRig _cameraRig;
-        HudView _hud;
+        protected BoardBuilder _board;
+        protected DiceView _dice;
+        protected CameraRig _cameraRig;
+        protected HudView _hud;
+        protected EventAnimator _animator;
 
         readonly Dictionary<Seat, IOpponentAgent> _bots = new Dictionary<Seat, IOpponentAgent>();
-        bool _processing;
+        protected bool _processing;
         bool _restartRequested;
 
         /// <summary>The authoritative host runner (save/resume, comedy, and
         /// later NetTransport all read from here).</summary>
         public MatchRunner Runner => _runner;
 
+        // ------------------------------------------------ IBoardStateView
+
+        public Seat[] SeatsInPlay => _runner.Config.SeatsInPlay;
+        public int TokenProgressOf(Seat seat, int tokenIndex) =>
+            _runner.State.Token(seat, tokenIndex).Progress;
+        public bool IsMatchOver => _runner.IsMatchOver;
+        public Seat CurrentSeat => _runner.IsMatchOver ? (Seat)(-1) : _runner.CurrentSeat;
+
+        public event System.Action<GameEvent> EventAnimatedView;
+        public event System.Action<GameEvent> EventStartedView;
+
         /// <summary>Raised after each event's animation completes — the
         /// comedy layer, R1 clip overlay and auto-save subscribe here.</summary>
-        public event Action<GameEvent> EventAnimated;
-
-        /// <summary>Raised once per applied command, after its whole event
-        /// batch has animated — the auto-save point.</summary>
-        public event Action BatchCompleted;
+        public event System.Action<GameEvent> EventAnimated;
 
         /// <summary>Raised the moment each event arrives (before animation) —
         /// instant feedback layer (SFX, slow-mo, screen shake).</summary>
-        public event Action<GameEvent> EventStarted;
+        public event System.Action<GameEvent> EventStarted;
+
+        /// <summary>Raised once per applied command, after its whole event
+        /// batch has animated — the auto-save point.</summary>
+        public event System.Action BatchCompleted;
+
+        // ------------------------------------------------------------ init
 
         public void Initialize(MatchSetup setup, BoardBuilder board, DiceView dice,
                                CameraRig rig, HudView hud, int seed)
@@ -62,11 +91,21 @@ namespace DesiLudo3D.Gameplay
             _hud = hud;
 
             if (_runner != null) _runner.CommandApplied -= OnCommandApplied;
-            _runner = runner ?? throw new ArgumentNullException(nameof(runner));
+            if (_animator != null)
+            {
+                _animator.EventStarted -= OnEventStarted;
+                _animator.EventAnimated -= OnEventAnimated;
+            }
+            _runner = runner ?? throw new System.ArgumentNullException(nameof(runner));
             _runner.CommandApplied += OnCommandApplied;
 
+            _animator = EnsureAnimator();
+            _animator.Wire(_board, _dice, _cameraRig, _hud);
+            _animator.EventStarted += OnEventStarted;
+            _animator.EventAnimated += OnEventAnimated;
+
             _bots.Clear();
-            var tier = (BotTier)Math.Max(0, Math.Min(2, setup.BotTier));
+            var tier = (BotTier)Mathf.Clamp((int)setup.BotTier, 0, 2);
             foreach (Seat seat in _runner.Config.SeatsInPlay)
             {
                 if (setup.KindFor(seat) == ControllerKind.Bot)
@@ -80,14 +119,27 @@ namespace DesiLudo3D.Gameplay
             _hud.HideResults();
             _hud.Tick("");
 
-            SyncAllTokens();
+            _animator.SyncAll(_runner.State);
             _cameraRig.SetSeat(_runner.CurrentSeat, instant: true);
             RefreshHud();
         }
 
-        void OnDestroy()
+        EventAnimator EnsureAnimator()
+        {
+            if (_animator != null) return _animator;
+            var go = new GameObject("EventAnimator");
+            go.transform.SetParent(transform, false);
+            return go.AddComponent<EventAnimator>();
+        }
+
+        protected virtual void OnDestroy()
         {
             if (_runner != null) _runner.CommandApplied -= OnCommandApplied;
+            if (_animator != null)
+            {
+                _animator.EventStarted -= OnEventStarted;
+                _animator.EventAnimated -= OnEventAnimated;
+            }
         }
 
         // ------------------------------------------------------------ input
@@ -162,106 +214,25 @@ namespace DesiLudo3D.Gameplay
                 _hud.Tick(UiStrings.F("illegal", error));
                 return;
             }
-            StartCoroutine(ProcessBatch(events));
-        }
-
-        IEnumerator ProcessBatch(IReadOnlyList<GameEvent> events)
-        {
             _processing = true;
-            foreach (GameEvent e in events)
+            _animator.AnimateBatch(events, () =>
             {
-                EventStarted?.Invoke(e);
-                yield return HandleEvent(e);
-                EventAnimated?.Invoke(e);
-            }
-            _processing = false;
-            RefreshHud();
-            BatchCompleted?.Invoke();
-            MaybeStartBotTurn();
+                _processing = false;
+                RefreshHud();
+                BatchCompleted?.Invoke();
+                MaybeStartBotTurn();
+            });
         }
 
-        IEnumerator HandleEvent(GameEvent e)
+        void OnEventStarted(GameEvent e)
         {
-            switch (e)
-            {
-                case DiceRolled d:
-                    _hud.Tick("");
-                    yield return _dice.AnimateRoll(d.Die);
-                    _hud.ShowDie(d.Die);
-                    break;
-
-                case NoLegalMove n:
-                    _hud.Tick(UiStrings.F("noMove", Seats.Name(n.Seat), n.Die));
-                    yield return new WaitForSeconds(0.7f);
-                    break;
-
-                case TokenMoved m:
-                    yield return AnimateTokenMove(m);
-                    break;
-
-                case TokenCaptured c:
-                    {
-                        var victim = _board.Tokens[(int)c.VictimSeat * BoardGeometry.TokensPerSeat + c.VictimIndex];
-                        _hud.Tick(UiStrings.F("cut", Seats.Name(c.AttackerSeat), Seats.Name(c.VictimSeat)));
-                        yield return victim.AnimateCaptureHome();
-                        break;
-                    }
-
-                case TokenFinished f:
-                    _hud.Tick(UiStrings.F("tokenHome", Seats.Name(f.Seat)));
-                    yield return new WaitForSeconds(0.35f);
-                    break;
-
-                case PlayerFinished p:
-                    _hud.Tick(UiStrings.F("playerFinish", Seats.Name(p.Seat), p.Place));
-                    yield return new WaitForSeconds(1.0f);
-                    break;
-
-                case TurnVoided v:
-                    _hud.Tick(UiStrings.F("voided", Seats.Name(v.Seat)));
-                    yield return new WaitForSeconds(1.0f);
-                    break;
-
-                case TurnEnded t:
-                    _cameraRig.SetSeat(t.NextSeat);
-                    yield return new WaitForSeconds(0.35f);
-                    break;
-
-                case PlayerLeft l:
-                    _hud.Tick(UiStrings.F("left", Seats.Name(l.Seat)));
-                    break;
-
-                case MatchEnded end:
-                    ShowResults(end);
-                    break;
-            }
+            EventStarted?.Invoke(e);
+            EventStartedView?.Invoke(e);
         }
-
-        IEnumerator AnimateTokenMove(TokenMoved m)
+        void OnEventAnimated(GameEvent e)
         {
-            TokenView token = _board.Tokens[(int)m.Seat * BoardGeometry.TokensPerSeat + m.TokenIndex];
-            var waypoints = new List<Vector3>();
-
-            if (m.IsRelease)
-            {
-                waypoints.Add(TokenView.ProgressToWorld(m.Seat, 0));
-            }
-            else
-            {
-                for (int p = m.From + 1; p <= m.To; p++)
-                    waypoints.Add(TokenView.ProgressToWorld(m.Seat, p));
-            }
-
-            yield return token.AnimateMove(waypoints, m.IsRelease, m.To == TokenProgress.Finished);
-        }
-
-        void ShowResults(MatchEnded end)
-        {
-            var lines = new System.Text.StringBuilder(UiStrings.Get("matchOver") + "\n\n");
-            foreach (Standing s in end.Standings)
-                lines.Append("#").Append(s.Place).Append("  ").Append(Seats.Name(s.Seat))
-                     .Append("  ").Append(UiStrings.F("homeCount", s.TokensHome)).Append("\n");
-            _hud.ShowResults(lines.ToString());
+            EventAnimated?.Invoke(e);
+            EventAnimatedView?.Invoke(e);
         }
 
         // ------------------------------------------------------------ bots & hud
@@ -302,20 +273,6 @@ namespace DesiLudo3D.Gameplay
             _hud.SetTurn(Seats.Name(_runner.CurrentSeat), human,
                          human && _runner.IsAwaitingRoll,
                          human && _runner.IsAwaitingMove);
-        }
-
-        void SyncAllTokens()
-        {
-            foreach (Seat seat in _runner.Config.SeatsInPlay)
-            {
-                for (int i = 0; i < BoardGeometry.TokensPerSeat; i++)
-                {
-                    var token = _board.Tokens[(int)seat * BoardGeometry.TokensPerSeat + i];
-                    int progress = _runner.State.Token(seat, i).Progress;
-                    if (progress == TokenProgress.Base) token.SnapToBase();
-                    else token.SnapToProgress(progress);
-                }
-            }
         }
     }
 }

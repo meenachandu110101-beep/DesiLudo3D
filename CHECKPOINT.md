@@ -69,12 +69,25 @@
 | TutorialFlow — six bilingual first-launch steps (once-flag) | ✅ Authored |
 | **Validation** | Python 87/87 ✅ · comedy pools IN SYNC ✅ · rules sync IN SYNC ✅ · all touched C# balanced ✅ · owner checklist tests 25–29 ⏳ |
 
+
+### M5 — Online multiplayer (LAN/hotspot/direct IP): 🟡 protocol VALIDATED / Unity AUTHORED
+| Component | Status |
+|---|---|
+| `ludo/netproto.py` — host-authoritative protocol: lobby/room codes, commit–reveal, fair splitmix64 stream, HMAC-signed cmd/state, resync, shadow replay | ✅ **VALIDATED** (11 tests incl. fault injection; suite 98/98) |
+| Protocol livelock fix (state messages double as gap detectors) | ✅ **VALIDATED** (found by tests, fixed, re-tested) |
+| `Core/Net/NetSession.cs` — NetProtocol + NetHostSession (wraps MatchRunner) + NetGuestSession (shadow replay + verification) | ✅ Authored |
+| `Gameplay/Net/` — EventAnimator (shared pipeline), LanTransport (UDP beacons + TCP), OnlineHostController + OnlineGuestController, OnlineLobby | ✅ Authored |
+| IBoardStateView abstraction — comedy/feel/identity mode-agnostic | ✅ Authored |
+| Wizard: INTERNET permission (reflection-safe); no camera/mic/storage permissions | ✅ Authored |
+| **D6 final decision** — P2P for V1; EOS post-V1 drop-in; Nakama rejected (`docs/D6-TRANSPORT-DECISION.md`) | ✅ Decided + documented |
+| **Validation** | Python 98/98 ✅ · pools/rules sync IN SYNC ✅ · all touched C# balanced ✅ · owner two-device checklist tests 30–38 ⏳ |
+
 ## Remaining (milestone order)
 
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` (C# M0 closure) ② Unity first-open checklist (`docs/UNITY-VALIDATION.md`, M1 closure)
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity first-open checklist — now covers M1 tests 1–9 + M2 tests 10–16 (NativeGallery package auto-resolves on first open; internet needed once)
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity checklist tests 1–24 (M1 gray-box, M2 identity, M3 comedy/UI/save/look/clips)
-- [ ] **M5** NetTransport implementation + LAN play ($0), EOS-vs-Nakama evaluation → D6 final decision
+- [ ] **M6** internet play hardening: reconnect persistence across app restart, protocol edge cases (host migration NOT in V1), guest-side autosave of session endpoint
 - [ ] **M5** NetTransport + LAN play ($0) + EOS-vs-Nakama evaluation → D6 final
 - [ ] **M6** internet play: room codes, commit–reveal over the wire, reconnect, profile/clip sync
 - [ ] **M7** hardening: device lab, thermal/battery, AAB ≤80MB, Play compliance (API 36, Data Safety: no camera permission), closed testing
