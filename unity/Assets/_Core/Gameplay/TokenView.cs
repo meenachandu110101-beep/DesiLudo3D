@@ -150,6 +150,7 @@ namespace DesiLudo3D.Gameplay
             Vector3 start = transform.position;
             if (isRelease)
             {
+                Sfx.Play("release", 0.3f);
                 yield return Arc(start, SlotStanding(waypoints[0]), 0.35f, 1.6f);
                 start = SlotStanding(waypoints[0]);
                 waypoints.RemoveAt(0);
@@ -159,6 +160,7 @@ namespace DesiLudo3D.Gameplay
             foreach (Vector3 target in waypoints)
             {
                 Vector3 standing = SlotStanding(target);
+                Sfx.Play("hop", 0.22f);
                 yield return Hop(start, standing, stepTime);
                 start = standing;
             }

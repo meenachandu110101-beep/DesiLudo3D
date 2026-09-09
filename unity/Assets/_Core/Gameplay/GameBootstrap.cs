@@ -30,6 +30,7 @@ namespace DesiLudo3D.Gameplay
         DiceView _dice;
         IdentityCenter _identity;
         ComedyPlayback _comedy;
+        GameFeel _feel;
         bool _started;
 
         void Start()
@@ -73,19 +74,20 @@ namespace DesiLudo3D.Gameplay
             _board = new GameObject("BoardBuilder").AddComponent<BoardBuilder>();
             _board.Build(config);
 
-            var diceGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            diceGo.name = "Dice";
+            var diceGo = new GameObject("Dice");
             diceGo.transform.position = new Vector3(9.0f, 0.35f, 0f);
-            diceGo.transform.localScale = new Vector3(0.55f, 0.55f, 0.55f);
-            diceGo.GetComponent<Renderer>().sharedMaterial =
-                BoardBuilder.LitMaterial(new Color(0.97f, 0.95f, 0.9f));
-            _dice = diceGo.AddComponent<DiceView>();
+            _dice = diceGo.AddComponent<DiceView>();   // builds its own pip die
 
             _hud = new GameObject("Hud").AddComponent<HudView>();
             _hud.Build();
 
             _controller = new GameObject("PassAndPlay").AddComponent<PassAndPlayController>();
             _saves.Attach(_controller);
+
+            // premium look pass + game feel (presentation-only)
+            LookDev.Apply(_board, cam);
+            _feel = new GameObject("GameFeel").AddComponent<GameFeel>();
+            _feel.Attach(_controller);
 
             if (resumed != null)
             {

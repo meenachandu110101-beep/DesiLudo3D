@@ -36,6 +36,10 @@ namespace DesiLudo3D.Gameplay
         /// batch has animated — the auto-save point.</summary>
         public event Action BatchCompleted;
 
+        /// <summary>Raised the moment each event arrives (before animation) —
+        /// instant feedback layer (SFX, slow-mo, screen shake).</summary>
+        public event Action<GameEvent> EventStarted;
+
         public void Initialize(MatchSetup setup, BoardBuilder board, DiceView dice,
                                CameraRig rig, HudView hud, int seed)
         {
@@ -165,6 +169,7 @@ namespace DesiLudo3D.Gameplay
             _processing = true;
             foreach (GameEvent e in events)
             {
+                EventStarted?.Invoke(e);
                 yield return HandleEvent(e);
                 EventAnimated?.Invoke(e);
             }
