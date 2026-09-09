@@ -260,7 +260,11 @@ namespace DesiLudo3D.Gameplay
             if (_controller != null) Destroy(_controller.gameObject);
             if (_comedy != null) Destroy(_comedy.gameObject);
             if (_feel != null) Destroy(_feel.gameObject);
-            if (_identity != null) Destroy(_identity.gameObject);
+            if (_identity != null)
+            {
+                _hud.ProfilesPressed -= _identity.Toggle;   // persistent HUD
+                Destroy(_identity.gameObject);
+            }
             if (_board != null) Destroy(_board.gameObject);
             // online controllers too (re-entrant: rejoin after link loss
             // replaces the previous guest/host controller — M6)

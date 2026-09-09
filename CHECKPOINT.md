@@ -105,6 +105,36 @@
 | Orientation (D12) both allowed, portrait preferred | ✅ Set in M0; device test 45 ⏳ |
 | **Validation** | Python 101/101 ✅ · all touched C# balanced ✅ · owner checklist tests 43–48 ⏳ |
 
+## Final spec-to-repo audit (2026-09-09, M7 close-out)
+
+Deep verification pass beyond the RELEASE-CHECKLIST table:
+
+- **A1 camera/mic**: zero occurrences of WebCamTexture / Microphone /
+  permission requests for camera or mic across all 46 C# files. The only
+  permission is INTERNET (P2P sockets). ✅
+- **Network surface**: the only UnityWebRequest in the repo loads LOCAL
+  `file://` VO clips (VoicePacks). No http(s) endpoints, no analytics, no
+  ads. TTS is the on-device OS service (android.speech.tts), no cloud TTS. ✅
+- **Voice rule (absolute)**: ComedyPlayback picks VO via
+  `VoicePacks.GetClip(identity.Category, …)` — the PROFILE's category
+  (male/female/child…), never the seat/colour. Comment-enforced +
+  pool-sync-tested. ✅
+- **IL2CPP safety**: no `dynamic`, no reflection-emit; the two reflection
+  uses (internetAccess, targetSdk) are editor-only with runtime fallbacks. ✅
+- **No silent removal**: WireSharedOnline rebuilds identity/feel/comedy for
+  online modes over IBoardStateView (same comedy/feel/identity stack
+  offline AND online); teardown unsubscribes the persistent HUD from the
+  destroyed IdentityCenter. ✅
+- **Symbol audit**: FixedSequenceDiceProvider, MatchRunner.TryRollValue/
+  TryLeave, GameState.StateHash, UiStrings keys, lobby UI helpers,
+  CommitRevealDice — all exist and are used consistently. ✅
+- **Guest-command guards (C# = Python)**: not-your-turn check, phase
+  checks, die always drawn host-side from the fair stream (guests cannot
+  inject values). ✅
+- **Structural balance**: 46/46 C# files brace/paren balanced. ✅
+- **Python suites**: 101/101 (61 rules + 18 comedy + 8 agents + 14 netproto,
+  flake-swept 25×). ✅
+
 ## Remaining (milestone order)
 
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` (C# M0 closure) ② Unity first-open checklist (`docs/UNITY-VALIDATION.md`, M1 closure)
