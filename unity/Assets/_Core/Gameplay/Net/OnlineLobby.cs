@@ -25,8 +25,28 @@ namespace DesiLudo3D.Gameplay
             _bootstrap = bootstrap;
             if (_net == null) _net = gameObject.AddComponent<LanTransport>();
             BuildPanel();
+            RefreshReconnectButton();   // M6: rejoin offered whenever valid
             _net.StartDiscovery();
             _panel.SetActive(true);
+        }
+
+        void RefreshReconnectButton()
+        {
+            if (_reconnectButton != null) Destroy(_reconnectButton.gameObject);
+            _reconnectButton = null;
+            string persisted = PlayerPrefs.GetString(PersistKey, "");
+            if (persisted.Length == 0) return;
+            string[] parts = persisted.Split('|');
+            if (parts.Length != 4) return;
+            _reconnectButton = MakeButton(_panel.transform, "Reconnect",
+                "REJOIN MATCH (" + parts[1] + " @ " + parts[0] + ")",
+                new Color(0.55f, 0.35f, 0.6f), 30);
+            Bottom(_reconnectButton.GetComponent<RectTransform>(),
+                new Vector2(0f, 200f), new Vector2(700f, 100f));
+            _reconnectButton.onClick.AddListener(() => StartCoroutine(
+                ReconnectFlow(parts[0], parts[1],
+                    (Seat)System.Enum.Parse(typeof(Seat), parts[2], true),
+                    parts[3])));
         }
 
         void BuildPanel()
@@ -91,15 +111,50 @@ namespace DesiLudo3D.Gameplay
             close.onClick.AddListener(() => { _net.StopDiscovery(); _panel.SetActive(false); });
         }
 
+        public const string PersistKey = "desiludo.online.session";
+
+        IEnumerator ReconnectFlow(string ip, string code, Seat seat, string keyHex)
+        {
+            var guest = new NetGuestSession("Player");
+            var transport = _net.StartGuestSide();
+            if (!transport.Connect(ip))
+            {
+                _status.text = "Host not reachable — is the host device still in the match?";
+                yield break;
+            }
+            _status.text = "Rejoining room " + code + "…";
+            guest.Send = transport.Send;
+            guest.RejoinWithProof(code, seat, keyHex);
+            float waited = 0f;
+            while ((guest.SeatIndex < 0 || guest.Config == null) && waited < 5f)
+            {
+                transport.Pump(guest.OnLine);
+                if (guest.Errors.Count > 0) break;
+                waited += 0.1f;
+                yield return new WaitForSeconds(0.1f);
+            }
+            transport.Pump(guest.OnLine);
+            if (guest.SeatIndex < 0 || guest.Config == null)
+            {
+                _status.text = guest.Errors.Count > 0
+                    ? guest.Errors[0] : "Rejoin failed (no answer).";
+                transport.Disconnect();
+                yield break;
+            }
+            guest.Resume();   // full log replay → shadow state converges
+            _net.StopDiscovery();
+            _panel.SetActive(false);
+            _bootstrap.EnterOnlineGuestMode(guest, transport);
+        }
+
+        Button _reconnectButton;
+
         Button _playersButton;
         Button _hostButton;
         Button _joinButton;
         GameObject _roomList;
         InputField _manualField;
         int _players = 2;
-        LanTransport.HostSide _hostSide;
-        NetHostSession _hostSession;
-        string _roomCode;
         LanTransport.HostSide _hostSide;
         NetHostSession _hostSession;
         string _roomCode;
@@ -208,9 +263,32 @@ namespace DesiLudo3D.Gameplay
                 yield break;
             }
             guest.SendCommit(CommitRevealDice.CreateSeed());
+            // persist enough to rejoin after an app restart (M6)
+            StartCoroutine(PersistWhenSeated(guest, ip));
             _net.StopDiscovery();
             _panel.SetActive(false);
             _bootstrap.EnterOnlineGuestMode(guest, transport);
+        }
+
+        IEnumerator PersistWhenSeated(NetGuestSession guest, string ip)
+        {
+            // the session key arrives in `welcome` (already pumped by now);
+            // PersistedSession() returns null until seat + key are known
+            float waited = 0f;
+            while (waited < 10f)
+            {
+                string persisted = guest.PersistedSession();
+                if (persisted != null)
+                {
+                    string[] parts = persisted.Split('|');
+                    PlayerPrefs.SetString(PersistKey,
+                        ip + "|" + parts[0] + "|" + parts[1] + "|" + parts[2]);
+                    PlayerPrefs.Save();
+                    yield break;
+                }
+                waited += 0.25f;
+                yield return new WaitForSeconds(0.25f);
+            }
         }
 
         IEnumerator RefreshRoomList()

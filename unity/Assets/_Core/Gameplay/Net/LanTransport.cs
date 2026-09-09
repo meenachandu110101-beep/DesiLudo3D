@@ -158,6 +158,12 @@ namespace DesiLudo3D.Gameplay
 
             public Action<int, string> OnLine = (_, __) => { };
 
+            /// <summary>M6: fired on the MAIN THREAD (via Pump) when a
+            /// guest's connection drops — the host converts the seat to a
+            /// bot so the match never stalls; the friend can rejoin later
+            /// with their session proof and reclaim the seat.</summary>
+            public event Action<int> GuestDisconnected;
+
             public HostSide(LanTransport owner, int maxClients)
             {
                 _owner = owner;
@@ -216,15 +222,23 @@ namespace DesiLudo3D.Gameplay
                 catch (Exception) { /* connection lost */ }
                 lock (_clients)
                 {
+                    _left.Add(_ids[client]);
                     _clients.Remove(client);
                     _ids.Remove(client);
                 }
             }
+            readonly List<int> _left = new List<int>();
 
             public void Pump(Action<int, string> deliver)
             {
                 while (_inbound.TryDequeue(out var msg))
                     deliver(msg.Id, msg.Line);
+                lock (_left)
+                {
+                    for (int i = 0; i < _left.Count; i++)
+                        GuestDisconnected?.Invoke(_left[i]);
+                    _left.Clear();
+                }
             }
 
             public void SendTo(int guestId, string line)
@@ -290,6 +304,17 @@ namespace DesiLudo3D.Gameplay
             public string HostIp { get; private set; }
 
             /// <summary>Connect to a host. Returns false when unreachable.</summary>
+            /// <summary>M6: false once the host connection is lost —
+            /// callers can offer a reconnect.</summary>
+            public bool Connected
+            {
+                get
+                {
+                    var c = _client;
+                    return c != null && c.Connected;
+                }
+            }
+
             public bool Connect(string hostIp)
             {
                 Disconnect();

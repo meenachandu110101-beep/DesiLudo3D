@@ -258,12 +258,18 @@ namespace DesiLudo3D.Gameplay
             if (_feel != null) Destroy(_feel.gameObject);
             if (_identity != null) Destroy(_identity.gameObject);
             if (_board != null) Destroy(_board.gameObject);
+            // online controllers too (re-entrant: rejoin after link loss
+            // replaces the previous guest/host controller — M6)
+            if (_onlineView != null) Destroy(((Component)_onlineView).gameObject);
             _controller = null;
             _comedy = null;
             _feel = null;
             _identity = null;
             _board = null;
+            _onlineView = null;
         }
+
+        IBoardStateView _onlineView;
 
         /// <summary>Lobby callback: the fair stream began on the host —
         /// build the host-side online scene around the authoritative session.</summary>
@@ -344,6 +350,7 @@ namespace DesiLudo3D.Gameplay
         /// systems as offline, over the IBoardStateView abstraction.</summary>
         void WireSharedOnline(IBoardStateView view, MatchConfig config, int seed)
         {
+            _onlineView = view;
             if (_profiles == null) _profiles = new ProfileService(new FileProfileStore());
             if (_clipLib == null)
             {

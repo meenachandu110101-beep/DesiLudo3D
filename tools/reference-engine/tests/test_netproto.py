@@ -84,14 +84,15 @@ def drive_match(wire, host, guests, chooser, max_steps=200_000, stop_after=None)
         # whose device controls this seat?
         owner_gid = host._guest_of_seat(seat)
         if owner_gid is None:
+            # host seat or a bot seat (takeover / vacant): host drives it
             if host.state.phase == TurnPhase.AWAIT_ROLL:
-                host.host_roll()
+                host.roll_for(seat)
             else:
                 moves = host._pending_moves_for(seat)
                 if not moves:
                     return
                 chosen = moves[chooser(None, moves, host.state)]
-                host.host_move(chosen.token_index)
+                host.move_for(seat, chosen.token_index)
         else:
             g = guests[owner_gid]
             if not g.connected:
@@ -256,7 +257,20 @@ def test_reconnect_mid_match():
 
 def test_unfair_die_detected_by_guest():
     wire, host, guests, _ = make_session(players=2)
-    drive_match(wire, host, guests, simple_chooser, stop_after=4)
+    # drive until it is the HOST seat's turn to roll — a deterministic
+    # injection point (a forged roll for a seat that is not rolling is
+    # rejected as illegal-move, not as unfair-die)
+    hit = False
+    for _ in range(60):
+        drive_match(wire, host, guests, simple_chooser, stop_after=host.seq + 1)
+        if (host.state is not None
+                and host.state.phase == TurnPhase.AWAIT_ROLL
+                and host.state.current_seat == host.seats[0]):
+            hit = True
+            break
+        if host.state is None or host.state.phase == TurnPhase.MATCH_OVER:
+            break
+    assert hit, "host seat never rolled in 60 commands"
     g = guests[1]
     # lying host injects a signed cmd with a die value OFF the committed stream
     from ludo.model import RollDiceCommand
@@ -328,3 +342,78 @@ def test_deterministic_replay_same_seeds():
     s1 = [Rng(h1.stream_seed).next_int(6) + 1 for _ in range(20)]
     s2 = [Rng(h2.stream_seed).next_int(6) + 1 for _ in range(20)]
     assert s1 == s2
+
+
+# ---------------------------------------------------------------- M6 hardening
+
+def test_app_restart_reconnect_with_proof():
+    """Guest loses EVERYTHING (app restart): reconnects with the persisted
+    session proof, replays the whole match, and converges."""
+    wire, host, guests, _ = make_session(players=2, names=["Kabir Singh"])
+    drive_match(wire, host, guests, simple_chooser, stop_after=12)
+    g = guests[1]
+    persisted = g.persisted_session()      # what the app saves to disk
+    assert persisted["session_key"] is not None
+    # app restart: brand-new NetGuest, old connection gone forever
+    g.connected = False
+    g2 = NetGuest("Kabir Singh", lambda l: None)
+    guests2 = {1: g2}
+    wire.connect(host, guests2)            # rebind wire to the new guest
+    g2.rejoin_with_proof(persisted["room_code"], g.seat,
+                         persisted["session_key"])
+    while wire.step():
+        pass
+    assert g2.seat == g.seat               # got its old seat back
+    assert g2.session_key == g.session_key
+    g2.resume()
+    drive_match(wire, host, guests2, simple_chooser)
+    assert host.state.phase == TurnPhase.MATCH_OVER
+    assert [l for _, l in g2.command_log] == [l for _, l, _ in host.command_log]
+    assert g2.state.state_hash() == host.state.state_hash()
+    assert not g2.errors, g2.errors
+
+
+def test_rejoin_with_wrong_key_rejected():
+    wire, host, guests, _ = make_session(players=2)
+    drive_match(wire, host, guests, simple_chooser, stop_after=6)
+    g = guests[1]
+    g.connected = False
+    stranger = NetGuest("Evil Twin", lambda l: None)
+    guests2 = {1: stranger}
+    wire.connect(host, strangers := guests2)
+    stranger.rejoin_with_proof(host.room_code, g.seat, "00" * 32)
+    while wire.step():
+        pass
+    assert stranger.seat is None          # never seated
+    assert "bye bad-session-key" in stranger.errors
+    assert g.seat.name in [s.name for s in host.seats]
+
+
+def test_takeover_seat_as_bot_then_rejoin_reclaims():
+    """A guest leaves mid-match: host converts the seat to a bot so the
+    match never stalls; the friend returns later and reclaims the seat."""
+    wire, host, guests, _ = make_session(players=3)
+    drive_match(wire, host, guests, simple_chooser, stop_after=8)
+    # make_session ids: 1 = first guest, 2 = second guest
+    departed = guests[2]
+    departed_seat = departed.seat
+    persisted = departed.persisted_session()
+    staying = guests[1]
+    # friend at the second guest seat walks away (connection drops)
+    departed.connected = False
+    wire.guests = {1: staying}            # stop delivering to that guest
+    host.take_over_seat(departed_seat)
+    assert host.seat_owner[departed_seat] == "bot"
+    # match continues to completion driven by host + remaining guest
+    drive_match(wire, host, {1: staying}, simple_chooser)
+    assert host.state.phase == TurnPhase.MATCH_OVER
+    assert staying.state.state_hash() == host.state.state_hash()
+    # the friend returns (new app instance) and reclaims the seat
+    back = NetGuest("Returned", lambda l: None)
+    wire.connect(host, {1: back})
+    back.rejoin_with_proof(persisted["room_code"], departed_seat,
+                           persisted["session_key"])
+    while wire.step():
+        pass
+    assert back.seat == departed_seat     # reclaimed
+    assert host.seat_owner[departed_seat] == "Returned"

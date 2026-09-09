@@ -23,6 +23,8 @@ namespace DesiLudo3D.Gameplay
 
         readonly Dictionary<Seat, IOpponentAgent> _bots = new Dictionary<Seat, IOpponentAgent>();
         readonly Dictionary<Seat, string> _seatKind = new Dictionary<Seat, string>(); // "host"/"guest"/"bot"
+        int _botTier;
+        int _seed;
         bool _processing;
         int _seed;
 
@@ -55,6 +57,7 @@ namespace DesiLudo3D.Gameplay
             _hud = hud;
             _profiles = profiles;
             _seed = seed;
+            _botTier = botTier;
             _seatKind.Clear();
             foreach (var kv in seatKinds) _seatKind[kv.Key] = kv.Value;
 
@@ -65,6 +68,11 @@ namespace DesiLudo3D.Gameplay
                     _bots[seat] = new HeuristicAgent((BotTier)Mathf.Clamp(botTier, 0, 2),
                         seed * 31 + (int)seat);
             }
+
+            // M6: a guest's connection dropping mid-match converts their
+            // seat to a bot immediately (match never stalls); if they rejoin
+            // with proof, the seat flips back automatically.
+            _transport.GuestDisconnected += OnGuestDisconnected;
 
             var animatorGo = new GameObject("HostAnimator");
             animatorGo.transform.SetParent(transform, false);
@@ -98,6 +106,8 @@ namespace DesiLudo3D.Gameplay
         {
             if (_transport != null)
                 _transport.Pump((id, line) => _session.OnLine(id, line));
+            if (_session != null && _session.MatchStarted)
+                PollRejoinedGuests();
 
             if (_session.Runner == null || _processing || _session.Runner.IsMatchOver) return;
             MaybeRunBot();
@@ -112,6 +122,36 @@ namespace DesiLudo3D.Gameplay
 
         bool IsLocalSeat(Seat seat) =>
             _seatKind.TryGetValue(seat, out var k) && (k == "host" || k == "bot");
+
+        void OnGuestDisconnected(int guestId)
+        {
+            if (_session == null || !_session.MatchStarted) return;
+            Seat? owned = _session.SeatOfGuest(guestId);
+            if (owned == null || !_session.Seats.Contains(owned.Value)) return;
+            _session.TakeOverSeat(owned.Value);
+            _seatKind[owned.Value] = "bot";
+            _bots[owned.Value] = new HeuristicAgent(
+                (BotTier)Mathf.Clamp(_botTier, 0, 2), _seed * 31 + (int)owned.Value);
+            _hud.Tick("Player left — seat taken over by a bot (they can rejoin anytime)");
+            MaybeRunBot();
+        }
+
+        void PollRejoinedGuests()
+        {
+            // a rebind (proof rejoin) flips a bot seat back to "guest"
+            var owners = _session.SeatOwners;
+            foreach (var kv in _seatKind)
+            {
+                if (kv.Value != "bot") continue;
+                if (owners.TryGetValue(kv.Key, out string owner)
+                    && owner == "guest")
+                {
+                    _seatKind[kv.Key] = "guest";
+                    _bots.Remove(kv.Key);
+                    _hud.Tick("Player rejoined — seat restored");
+                }
+            }
+        }
 
         void MaybeRunBot()
         {
@@ -226,10 +266,31 @@ namespace DesiLudo3D.Gameplay
             _hud.HideResults();
         }
 
+        bool _linkLostShown;
+        bool _clearedPersist;
+
         void Update()
         {
             if (_transport != null)
                 _transport.Pump(line => _session.OnLine(line));
+
+            // M6: connection lost → tell the player how to get back
+            // (the host auto-converts the seat to a bot meanwhile)
+            if (!_linkLostShown && _transport != null && !_transport.Connected
+                && _session.State != null)
+            {
+                _linkLostShown = true;
+                _hud.Tick("Connection lost — tap ONLINE to REJOIN the match");
+            }
+
+            // match over → the persisted rejoin key is stale, clear it
+            if (_session.State != null && _session.State.Phase == TurnPhase.MatchOver
+                && !_clearedPersist)
+            {
+                _clearedPersist = true;
+                PlayerPrefs.DeleteKey(OnlineLobby.PersistKey);
+                PlayerPrefs.Save();
+            }
 
             // guest input: tap own token to move (roll via HUD button)
             if (_session.State == null || _processing) return;
@@ -278,13 +339,23 @@ namespace DesiLudo3D.Gameplay
             return best;
         }
 
-        /// <summary>Wire shadow-applied commands to the animator.</summary>
+        /// <summary>Wire shadow-applied commands to the animator. During a
+        /// replay (rejoin/resync) commands are applied to the shadow state
+        /// but NOT animated — the board snaps via SyncAll on `resynced`
+        /// (M6: rejoining a running match is instant, not a slow re-watch).</summary>
         public void BindShadowToAnimator()
         {
             _session.CommandAppliedShadow += (command, events) =>
             {
+                if (_session.Replaying) return;
                 _processing = true;
                 _animator.AnimateBatch(events, () => { _processing = false; RefreshHud(); });
+            };
+            _session.Resynced += () =>
+            {
+                if (_session.State == null) return;
+                _animator.SyncAll(_session.State);
+                RefreshHud();
             };
         }
 

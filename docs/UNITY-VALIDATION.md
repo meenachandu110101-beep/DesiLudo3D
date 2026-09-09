@@ -189,6 +189,19 @@ INTERNET (see `docs/D6-TRANSPORT-DECISION.md`).
 - Online autosave: offline matches auto-save; online hosts resync guests
   from the signed command log instead (the authoritative equivalent).
 
+### M6 additions — reconnect & resilience (owner two-device checklist cont.)
+
+| # | Test | Expected |
+|---|---|---|
+| 39 | Guest: kill the APP entirely mid-match, relaunch, ONLINE | A purple **REJOIN MATCH** button appears; tapping it rejoins the running match (host shows "Player rejoined — seat restored" if the seat had been taken over) |
+| 40 | Guest: rejoin a seat the host took over as bot | Seat flips back from bot to the returning player |
+| 41 | Host: guest walks away mid-match (no rejoin) | Host device shows "Player left — seat taken over by a bot"; the match continues and completes |
+| 42 | Guest: turn off Wi-Fi mid-match | Guest HUD shows "Connection lost — tap ONLINE to REJOIN"; host converts the seat to a bot; rejoin restores the seat |
+
+Machine-VALIDATED underpinning: `test_app_restart_reconnect_with_proof`,
+`test_rejoin_with_wrong_key_rejected`, `test_takeover_seat_as_bot_then_rejoin_reclaims`
+(Python protocol suite, 101/101 green).
+
 ## C# rules validation (no Unity needed, any machine with .NET SDK 8+)
 
 ```bash

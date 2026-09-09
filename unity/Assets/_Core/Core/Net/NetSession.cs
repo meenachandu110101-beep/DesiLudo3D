@@ -107,6 +107,7 @@ namespace DesiLudo3D.Core
         readonly string _hostName;
         readonly List<Seat> _seats = new List<Seat>();
         readonly Dictionary<int, string> _guestSeat = new Dictionary<int, string>();   // guestId -> seat name
+        readonly Dictionary<int, string> _guestNames = new Dictionary<int, string>();  // guestId -> display name
         readonly Dictionary<Seat, string> _seatOwner = new Dictionary<Seat, string>();
         readonly Dictionary<Seat, string> _commitments = new Dictionary<Seat, string>();
         readonly Dictionary<Seat, byte[]> _reveals = new Dictionary<Seat, byte[]>();
@@ -124,6 +125,14 @@ namespace DesiLudo3D.Core
         public bool IsSeatClaimed(Seat seat) => _seatOwner.ContainsKey(seat);
 
         public int GuestCount => _guestSeat.Count;
+
+        /// <summary>Seat bound to a guest id (M6: takeover/reclaim UX).</summary>
+        public Seat? SeatOfGuest(int guestId)
+        {
+            if (_guestSeat.TryGetValue(guestId, out string sn))
+                return Seats.Parse(sn);
+            return null;
+        }
 
         /// <summary>Fired when the fair stream begins (all commits+reveals
         /// in) — the host UI builds the match scene here.</summary>
@@ -199,7 +208,34 @@ namespace DesiLudo3D.Core
                 {
                     if (p.Length < 3) { Send(guestId, "bye malformed"); return; }
                     if (p[1] != _roomCode) { Send(guestId, "bye bad-room-code"); return; }
-                    if (MatchStarted || _guestSeat.Count >= _seats.Count - 1)
+                    if (MatchStarted)
+                    {
+                        // mid-match rejoin: hello <code> <seat> <keyhex> <name...>
+                        // (proof of seat ownership; strangers cannot enter)
+                        if (p.Length < 4) { Send(guestId, "bye room-full"); return; }
+                        if (p[3] != NetProtocol.Hex(_sessionKey))
+                        { Send(guestId, "bye bad-session-key"); return; }
+                        if (!SeatNameInConfig(p[2]))
+                        { Send(guestId, "bye bad-seat"); return; }
+                        Seat rseat = Seats.Parse(p[2]);
+                        if (rseat == HostSeat())
+                        { Send(guestId, "bye bad-seat"); return; }
+                        // drop any stale binding for that seat
+                        foreach (int gid in KeysOfSeat(rseat)) DropGuest(gid);
+                        string rname = p.Length > 4 ? string.Join(" ", p, 4, p.Length - 4) : "Player";
+                        if (rname.Length > 24) rname = rname.Substring(0, 24);
+                        if (rname.Length == 0) rname = "Player";
+                        _guestSeat[guestId] = Seats.Name(rseat);
+                        _guestNames[guestId] = rname;
+                        _seatOwner[rseat] = "guest";
+                        Send(guestId, "welcome " + (int)rseat + " " + _sessionNonce + " "
+                                    + NetProtocol.Hex(_sessionKey));
+                        // replay the match setup so the guest can rebuild
+                        SendSigned(guestId, StartLine());
+                        SendSigned(guestId, SeedsLine());
+                        return;
+                    }
+                    if (_guestSeat.Count >= _seats.Count - 1)
                     { Send(guestId, "bye room-full"); return; }
                     Seat seat = FreeSeat();
                     _guestSeat[guestId] = Seats.Name(seat);
@@ -293,12 +329,45 @@ namespace DesiLudo3D.Core
             if (_reveals.Count == _seats.Count) BeginStream();
         }
 
-        void StartMatch()
+        string StartLine()
         {
             var sb = new StringBuilder("start ")
                 .Append(_seats.Count).Append(' ').Append(Blockades ? 1 : 0);
             foreach (Seat s in _seats) sb.Append(' ').Append(_commitments[s]);
-            BroadcastSigned(sb.ToString());
+            return sb.ToString();
+        }
+
+        string SeedsLine()
+        {
+            var sb = new StringBuilder("seeds");
+            foreach (Seat s in _seats) sb.Append(' ').Append(NetProtocol.Hex(_reveals[s]));
+            return sb.ToString();
+        }
+
+        void StartMatch() => BroadcastSigned(StartLine());
+
+        /// <summary>M6 hardening: a departed guest's seat becomes a
+        /// host-driven bot so the match never stalls; the friend can rejoin
+        /// with proof anytime and reclaim the seat.</summary>
+        public void TakeOverSeat(Seat seat)
+        {
+            if (!_seats.Contains(seat) || seat == HostSeat()) return;
+            foreach (int gid in KeysOfSeat(seat)) DropGuest(gid);
+            _seatOwner[seat] = "bot";
+        }
+
+        List<int> KeysOfSeat(Seat seat)
+        {
+            var ids = new List<int>();
+            foreach (var kv in _guestSeat)
+                if (kv.Value == Seats.Name(seat)) ids.Add(kv.Key);
+            return ids;
+        }
+
+        bool SeatNameInConfig(string name)
+        {
+            foreach (Seat s in _seats) if (Seats.Name(s) == name) return true;
+            return false;
         }
 
         void BeginStream()
@@ -310,9 +379,7 @@ namespace DesiLudo3D.Core
             Runner = new MatchRunner(BuildConfig(), new FixedSequenceDiceProvider(1));
             Runner.CommandApplied += OnRunnerCommandApplied;
             MatchStarted = true;
-            var sb = new StringBuilder("seeds");
-            foreach (byte[] s in seeds) sb.Append(' ').Append(NetProtocol.Hex(s));
-            BroadcastSigned(sb.ToString());
+            BroadcastSigned(SeedsLine());
             MatchStartedEvent?.Invoke();
         }
 
@@ -433,6 +500,9 @@ namespace DesiLudo3D.Core
         byte[] _seed;
         byte[] _sessionKey;
 
+        public readonly string Name;
+        string _roomCode;
+
         public int SeatIndex = -1;
         public MatchConfig Config;
         public string[] Commitments = Array.Empty<string>();
@@ -463,8 +533,46 @@ namespace DesiLudo3D.Core
             && _state.CurrentSeat == (Seat)SeatIndex
             && _state.Phase != TurnPhase.MatchOver;
 
-        public void Join(string roomCode, string name) =>
+        public NetGuestSession(string name = "Player")
+        {
+            Name = name;
+        }
+
+        public void Join(string roomCode, string name)
+        {
+            _roomCode = roomCode;
             Send("hello " + roomCode + " " + name);
+        }
+
+        /// <summary>Mid-match / app-restart reconnect: prove seat ownership
+        /// with the session key from the original welcome (persisted by the
+        /// app). The host replays the match setup; then call Resume().</summary>
+        public void RejoinWithProof(string roomCode, Seat seat, string sessionKeyHex)
+        {
+            _roomCode = roomCode;
+            Send("hello " + roomCode + " " + Seats.Name(seat) + " " + sessionKeyHex
+                 + " " + Name);
+        }
+
+        /// <summary>Persisted session (PlayerPrefs on device): everything
+        /// needed to reconnect after an app restart.</summary>
+        public string PersistedSession()
+        {
+            if (_sessionKey == null || SeatIndex < 0 || string.IsNullOrEmpty(_roomCode))
+                return null;
+            return _roomCode + "|" + Seats.Name((Seat)SeatIndex) + "|"
+                   + NetProtocol.Hex(_sessionKey);
+        }
+
+        /// <summary>Restore from PersistedSession() (app restart).</summary>
+        public static (string roomCode, Seat seat, string keyHex) ParsePersisted(
+            string persisted)
+        {
+            if (string.IsNullOrEmpty(persisted)) return (null, Seat.Red, null);
+            string[] p = persisted.Split('|');
+            if (p.Length != 3) return (null, Seat.Red, null);
+            return (p[0], Seats.Parse(p[1]), p[2]);
+        }
 
         public void SendCommit(byte[] seed)
         {
@@ -478,7 +586,18 @@ namespace DesiLudo3D.Core
 
         public void RequestMove(int tokenIndex) => Send("cmd move " + tokenIndex);
 
-        public void Resume() => Send("resume " + LastSeq);
+        /// <summary>True between Resume() and the host's `resynced` reply —
+        /// the log is being replayed; UI should snap, not animate (M6).</summary>
+        public bool Replaying;
+
+        /// <summary>Fired when the host finishes replaying the log to us.</summary>
+        public event Action Resynced;
+
+        public void Resume()
+        {
+            Replaying = true;
+            Send("resume " + LastSeq);
+        }
 
         // ------------------------------------------------------------ inbound
 
@@ -551,6 +670,10 @@ namespace DesiLudo3D.Core
                     }
                     return;
                 }
+                case "resynced":
+                    Replaying = false;
+                    Resynced?.Invoke();
+                    return;
                 case "err":
                     Errors.Add(JoinSpan(p, 1, p.Length));
                     return;

@@ -82,12 +82,24 @@
 | **D6 final decision** — P2P for V1; EOS post-V1 drop-in; Nakama rejected (`docs/D6-TRANSPORT-DECISION.md`) | ✅ Decided + documented |
 | **Validation** | Python 98/98 ✅ · pools/rules sync IN SYNC ✅ · all touched C# balanced ✅ · owner two-device checklist tests 30–38 ⏳ |
 
+
+### M6 — online hardening (reconnect/resilience): 🟡 protocol VALIDATED / Unity AUTHORED
+| Component | Status |
+|---|---|
+| Proof rejoin (`hello code seat keyhex name`) — strangers rejected, session-key proof rebinds the seat, start+seeds replayed | ✅ **VALIDATED** (3 new tests) |
+| App-restart reconnect — `persisted_session` (Python) / `PersistedSession`+PlayerPrefs (C#/Unity REJOIN button) | ✅ VALIDATED (py) / Authored (C#) |
+| Bot takeover of a departed guest's seat + rejoin reclaim | ✅ VALIDATED (py) / Authored (C# host controller + transport GuestDisconnected) |
+| Seat-parameterized `roll_for`/`move_for` (dice always from the fair stream) | ✅ VALIDATED / Authored (`RollFor`/`MoveFor`) |
+| Non-animated resync (`resynced` → SyncAll snap) | ✅ Authored (protocol VALIDATED) |
+| Flaky unfair-die test fixed (deterministic injection point) | ✅ 25× re-run clean |
+| **Validation** | Python suite **101/101** ✅ · touched C# structurally balanced ✅ · owner checklist tests 39–42 ⏳ |
+
 ## Remaining (milestone order)
 
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` (C# M0 closure) ② Unity first-open checklist (`docs/UNITY-VALIDATION.md`, M1 closure)
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity first-open checklist — now covers M1 tests 1–9 + M2 tests 10–16 (NativeGallery package auto-resolves on first open; internet needed once)
 - [ ] **Owner validations (parallel, non-blocking):** ① `dotnet run --project tests/DesiLudo3D.Rules.Tests` ② Unity checklist tests 1–24 (M1 gray-box, M2 identity, M3 comedy/UI/save/look/clips)
-- [ ] **M6** internet play hardening: reconnect persistence across app restart, protocol edge cases (host migration NOT in V1), guest-side autosave of session endpoint
+- [ ] **M7** hardening/release: device-tier quality, orientation validation, Play compliance checklist (Data Safety: P2P, no data collected), packaging, final audit
 - [ ] **M5** NetTransport + LAN play ($0) + EOS-vs-Nakama evaluation → D6 final
 - [ ] **M6** internet play: room codes, commit–reveal over the wire, reconnect, profile/clip sync
 - [ ] **M7** hardening: device lab, thermal/battery, AAB ≤80MB, Play compliance (API 36, Data Safety: no camera permission), closed testing

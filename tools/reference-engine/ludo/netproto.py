@@ -163,13 +163,49 @@ class NetHost:
             if len(parts) < 3:
                 self.send(guest_id, "bye malformed")
                 return
-            code, name = parts[1], " ".join(parts[2:])[:24] or "Player"
+            code = parts[1]
             if code != self.room_code:
                 self.send(guest_id, "bye bad-room-code")
                 return
-            if self.match_started or len(self.guests) >= self.players - 1:
+            if self.match_started:
+                # mid-match rejoin: require proof (seat + session key) —
+                # a fresh stranger cannot enter a running match
+                # wire form: hello <code> <seat> <keyhex> <name...>
+                # (seat and key at fixed positions; name may contain spaces)
+                if len(parts) < 4:
+                    self.send(guest_id, "bye room-full")
+                    return
+                seat_name, key_hex = parts[2], parts[3]
+                if key_hex != self.session_key.hex():
+                    self.send(guest_id, "bye bad-session-key")
+                    return
+                try:
+                    seat = Seat[seat_name]
+                except KeyError:
+                    self.send(guest_id, "bye bad-seat")
+                    return
+                if seat not in self.seats or seat == self._host_seat():
+                    self.send(guest_id, "bye bad-seat")
+                    return
+                # drop any stale binding for this guest id / this seat
+                for gid in [g for g, (_, sn) in self.guests.items() if sn == seat.name]:
+                    self._drop_guest(gid, "rebind")
+                name = " ".join(parts[4:])[:24] or "Player"
+                self.guests[guest_id] = (name, seat.name)
+                self.seat_owner[seat] = self.guests[guest_id][0]
+                self.send(guest_id, f"welcome {seat.value} {self.session_nonce} "
+                                    f"{self.session_key.hex()}")
+                # replay the match setup so the guest can rebuild its shadow
+                commits = " ".join(self.commitments[s] for s in self.seats)
+                self.send_signed(guest_id, "start",
+                                 f"{self.config_line} {commits}")
+                seeds = " ".join(self.reveals[s].hex() for s in self.seats)
+                self.send_signed(guest_id, "seeds", seeds)
+                return
+            if len(self.guests) >= self.players - 1:
                 self.send(guest_id, "bye room-full")
                 return
+            name = " ".join(parts[2:])[:24] or "Player"
             seat = self._free_seat()
             self.guests[guest_id] = (name, seat.name)
             self.seat_owner[seat] = name
@@ -313,12 +349,34 @@ class NetHost:
         else:
             self.send(guest_id, "err unknown-cmd")
 
+    def take_over_seat(self, seat: Seat):
+        """M6 hardening: a departed guest's seat becomes a host-side bot so
+        the match never stalls. The guest can rejoin with proof anytime and
+        reclaim the seat."""
+        if seat not in self.seats or seat == self._host_seat():
+            return
+        if seat in self.seat_owner and self.seat_owner[seat] not in ("__host__", "bot"):
+            # unbind any live connection for that seat
+            for gid in [g for g, (_, sn) in self.guests.items() if sn == seat.name]:
+                self._drop_guest(gid, "takeover")
+        self.seat_owner[seat] = "bot"
+
+    def roll_for(self, seat: Seat):
+        """Roll for ANY seat the host controls (host seat, or a bot seat
+        after take_over_seat — M6 hardening). Die always from the fair
+        stream."""
+        self._apply(RollDiceCommand(seat, self.next_die()))
+
+    def move_for(self, seat: Seat, token_index: int):
+        """Move for any seat the host controls."""
+        self._apply(MoveTokenCommand(seat, token_index))
+
     def host_roll(self):
         """Host-seat roll (host device input calls this)."""
-        self._apply(RollDiceCommand(self._host_seat_live(), self.next_die()))
+        self.roll_for(self._host_seat_live())
 
     def host_move(self, token_index: int):
-        self._apply(MoveTokenCommand(self._host_seat_live(), token_index))
+        self.move_for(self._host_seat_live(), token_index)
 
     def _host_seat_live(self) -> Seat:
         # host seat = the seat not owned by a guest (after match start the
@@ -414,6 +472,21 @@ class NetGuest:
     def join(self, room_code: str):
         self.room_code = room_code
         self._send(f"hello {room_code} {self.name}")
+
+    def rejoin_with_proof(self, room_code: str, seat: Seat, session_key_hex: str):
+        """Mid-match/app-restart reconnect: prove ownership of the seat via
+        the session key received in the original welcome (persisted by the
+        app). The host replays the match setup; then send resume 0."""
+        self.room_code = room_code
+        self._send(f"hello {room_code} {seat.name} {session_key_hex} {self.name}")
+
+    def persisted_session(self) -> dict:
+        """Everything needed to reconnect after an app restart."""
+        return {
+            "room_code": self.room_code,
+            "seat": self.seat.name if self.seat else None,
+            "session_key": self.session_key.hex() if self.session_key else None,
+        }
 
     def send_commit(self, seed: bytes):
         self._seed = seed
